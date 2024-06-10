@@ -1,0 +1,43 @@
+linters-settings:
+  govet:
+    settings:
+      printf:
+        funcs:
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+  golint:
+    min-confidence: 0
+
+  gocyclo:
+    min-complexity: 17
+
+  misspell:
+    locale: US
+
+linters:
+  enable:
+    - gocritic
+    - gochecknoglobals
+    - gochecknoinits
+    - gocyclo
+    - gofmt
+    - revive
+    - govet
+    - ineffassign
+    - misspell
+    - gosec
+    - unparam
+
+run:
+  modules-download-mode: vendor
+
+#issues:
+#  exclude-rules:
+#    - text: "weak cryptographic primitive"
+#      linters:
+#        - gosec
+#  exclude-use-default: false
+#  exclude:
+#    - "SA1019: ImageDownload is deprecated"

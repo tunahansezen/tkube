@@ -1,0 +1,30 @@
+[Unit]
+Description=Etcd Server
+After=network.target
+After=network-online.target
+Wants=network-online.target
+Documentation=https://github.com/coreos
+[Service]
+Type=notify
+WorkingDirectory=/var/lib/etcd/
+ExecStart=/usr/bin/etcd \
+--name=${HOSTNAME} \
+--cert-file=/etc/etcd/pki/apiserver-etcd-client.crt \
+--key-file=/etc/etcd/pki/apiserver-etcd-client.key \
+--peer-cert-file=/etc/etcd/pki/apiserver-etcd-client.crt \
+--peer-key-file=/etc/etcd/pki/apiserver-etcd-client.key \
+--trusted-ca-file=/etc/etcd/pki/ca.crt \
+--peer-trusted-ca-file=/etc/etcd/pki/ca.crt \
+--initial-advertise-peer-urls=https://${HOST_IP}:2380 \
+--listen-peer-urls=https://${HOST_IP}:2380 \
+--listen-client-urls=https://${HOST_IP}:2379,http://127.0.0.1:2379 \
+--advertise-client-urls=https://${HOST_IP}:2379 \
+--initial-cluster-token=etcd-cluster-0 \
+--initial-cluster=${CLUSTER_ADDRESSES} \
+--initial-cluster-state=new \
+--data-dir=/var/lib/etcd
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+[Install]
+WantedBy=multi-user.target
