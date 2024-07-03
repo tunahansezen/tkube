@@ -35,7 +35,7 @@ func ReadConfig() error {
 func readDeploymentConfig() error {
 	deploymentCfgFile = fmt.Sprintf("%s/%s.%s", path.GetTKubeCfgDir(), constant.DeploymentCfgName, constant.DefaultCfgType)
 	var err error
-	if os.IsFileExists(deploymentCfgFile) {
+	if os.IsFileExists("", deploymentCfgFile) {
 		viper.SetConfigName(constant.DeploymentCfgName)
 		viper.SetConfigType(constant.DefaultCfgType)
 		if os.RemoteNode == nil {

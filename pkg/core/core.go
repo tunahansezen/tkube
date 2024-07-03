@@ -2,14 +2,35 @@ package core
 
 import (
 	cfg "com.github.tunahansezen/tkube/pkg/config"
+	"com.github.tunahansezen/tkube/pkg/config/model"
 	conn "com.github.tunahansezen/tkube/pkg/connection"
+	"com.github.tunahansezen/tkube/pkg/constant"
 	"com.github.tunahansezen/tkube/pkg/os"
 	"com.github.tunahansezen/tkube/pkg/path"
 	"fmt"
 	"github.com/hashicorp/go-version"
+	"gopkg.in/yaml.v3"
 )
 
 func PreRun() {
+	os.RemoteNode = &conn.Node{IP: os.RemoteNodeIP}
+	if IsoPath != "" {
+		os.UmountISO(constant.IsoMountDir, os.RemoteNode.IP)
+		os.MountISO(constant.IsoMountDir, IsoPath, os.RemoteNode.IP)
+		println("Reading versions from iso file")
+		fileStr := os.RunCommand(fmt.Sprintf("sudo cat %s/versions", constant.IsoMountDir), true)
+		println(fileStr)
+		var isoVersions model.IsoVersions
+		err := yaml.Unmarshal([]byte(fileStr), &isoVersions)
+		if err != nil {
+			os.Exit(err.Error(), 1)
+		}
+		KubeVersion = isoVersions.Kubernetes
+		DockerVersion = isoVersions.Docker
+		CalicoVersion = isoVersions.Calico
+		EtcdVersion = isoVersions.Etcd
+		HelmVersion = isoVersions.Helm
+	}
 	helmSemVer, _ := version.NewVersion(HelmVersion)
 	minHelmVer, _ := version.NewVersion("3.0.0")
 	if helmSemVer.LessThan(minHelmVer) {
@@ -23,7 +44,6 @@ func PreRun() {
 	if kubeSemVer.String() != KubeVersion {
 		os.Exit(fmt.Sprintf("Kubernetes version needed to be defined exactly. ex: %s", kubeSemVer.String()), 1)
 	}
-	os.RemoteNode = &conn.Node{IP: os.RemoteNodeIP}
 	toggleDebug()
 	os.DetectOS()
 	path.CalculatePaths()

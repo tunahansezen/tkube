@@ -1,5 +1,5 @@
-IMAGE_NAME = "bento/centos-7.9"
-N=3
+IMAGE_NAME = ENV['IMAGE_NAME'] || "bento/ubuntu-22.04"
+N = (ENV['N'] || 1).to_i
 
 Vagrant.configure("2") do |config|
     config.ssh.insert_key = false

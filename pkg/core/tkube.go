@@ -18,6 +18,7 @@ import (
 	signerl "github.com/cloudflare/cfssl/signer/local"
 	"github.com/guumaster/logsymbols"
 	"github.com/hashicorp/go-version"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"slices"
 	"strings"
@@ -38,13 +39,13 @@ var (
 	//go:embed resources
 	f                     embed.FS
 	AuthMapStr            string // node1IP:node1SshUser:node1SshPass,node2IP:node2SshUser:node2SshPass...
-	Offline               bool
 	DockerVersion         string
 	ContainerdVersion     string
 	EtcdVersion           string
 	KubeVersion           string
 	CalicoVersion         string
 	HelmVersion           string
+	IsoPath               string
 	etcdCompressedFile    string
 	etcdUrl               string
 	helmCompressedFile    string
@@ -66,6 +67,47 @@ func MasterConfigs() {
 	}
 	handleAuthMap()
 	addToEtcHosts()
+	if IsoPath != "" {
+		var firstMasterNode model.KubeNode
+		for i, masterNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+			if i == 0 {
+				firstMasterNode = masterNode
+				os.UmountISO(constant.IsoMountDir, masterNode.IP)
+				os.MountISO(constant.IsoMountDir, IsoPath, masterNode.IP)
+				var repoAddress string
+				if os.OS == os.Ubuntu {
+					repoAddress = fmt.Sprintf("file://%s/repo ./", constant.IsoMountDir)
+				} else if os.OS == os.CentOS {
+					repoAddress = fmt.Sprintf("file://%s/repo", constant.IsoMountDir)
+				}
+				os.AddRepository("tkube", "tkube", "tkube", repoAddress, "", masterNode.IP)
+				os.UpdateRepos(masterNode.IP)
+				os.InstallPackage("sshpass", masterNode.IP)
+				continue
+			}
+			isoFile := IsoPath[strings.LastIndex(IsoPath, "/")+1:]
+			if !os.IsFileExistsOn(os.GetMd5On(IsoPath, firstMasterNode.IP), IsoPath, masterNode.IP) {
+				util.StartSpinner(fmt.Sprintf("Transferring \"%s\" file to \"%s\"", isoFile, masterNode.IP))
+				err := os.TransferFile(IsoPath, IsoPath, firstMasterNode.IP, masterNode.IP)
+				if err != nil {
+					os.Exit(err.Error(), 1)
+				}
+				util.StopSpinner("", logsymbols.Success)
+			} else {
+				fmt.Printf("\"%s\" file exist on \"%s\"\n", isoFile, masterNode.IP.String())
+			}
+			os.UmountISO(constant.IsoMountDir, masterNode.IP)
+			os.MountISO(constant.IsoMountDir, IsoPath, masterNode.IP)
+			var repoAddress string
+			if os.OS == os.Ubuntu {
+				repoAddress = fmt.Sprintf("file://%s/repo ./", constant.IsoMountDir)
+			} else if os.OS == os.CentOS {
+				repoAddress = fmt.Sprintf("file://%s/repo", constant.IsoMountDir)
+			}
+			os.AddRepository("tkube", "tkube", "tkube", repoAddress, "", masterNode.IP)
+			os.UpdateRepos(masterNode.IP)
+		}
+	}
 	addCustomRepos()
 	installPackages()
 	kubeInstReqMap := removeKubePackagesIfNecessary()
@@ -84,6 +126,29 @@ func MasterConfigs() {
 	installHelm()
 	if cfg.DeploymentCfg.Keepalived.Enabled {
 		installKeepAliveD()
+	}
+	if IsoPath != "" {
+		kubeSemVer, _ := version.NewVersion(KubeVersion)
+		kube124Ver, _ := version.NewVersion("1.24")
+		for _, masterNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+			util.StartSpinner(fmt.Sprintf("Loading images on \"%s\"", masterNode.Hostname))
+			if kubeSemVer.GreaterThanOrEqual(kube124Ver) {
+				os.RunCommandOn(fmt.Sprintf("ls -1 %s/kubernetes/images/*.tar | "+
+					"xargs --no-run-if-empty -L 1 sudo ctr -n=k8s.io images import", constant.IsoMountDir),
+					masterNode.IP, true)
+				os.RunCommandOn(fmt.Sprintf("ls -1 %s/calico/images/*.tar | "+
+					"xargs --no-run-if-empty -L 1 sudo ctr -n=k8s.io images import", constant.IsoMountDir),
+					masterNode.IP, true)
+			} else {
+				os.RunCommandOn(fmt.Sprintf("ls -1 %s/kubernetes/images/*.tar | "+
+					"xargs --no-run-if-empty -L 1 sudo docker load -i", constant.IsoMountDir),
+					masterNode.IP, true)
+				os.RunCommandOn(fmt.Sprintf("ls -1 %s/calico/images/*.tar | "+
+					"xargs --no-run-if-empty -L 1 sudo docker load -i", constant.IsoMountDir),
+					masterNode.IP, true)
+			}
+			util.StopSpinner("", logsymbols.Success)
+		}
 	}
 	initKubernetes()
 }
@@ -135,6 +200,10 @@ func prepareNodes() {
 }
 
 func addCustomRepos() {
+	if IsoPath != "" {
+		log.Debugf("Skipping adding custom repo, because iso repo defined.")
+		return
+	}
 	for _, kubeNode := range cfg.DeploymentCfg.Nodes {
 		for _, repo := range cfg.DeploymentCfg.CustomRepos {
 			if !repo.Enabled {
@@ -174,7 +243,11 @@ func installPackages() {
 func installDocker() {
 	repo := cfg.DeploymentCfg.Docker.Repo
 	for _, kubeNode := range cfg.DeploymentCfg.Nodes {
-		if repo.Enabled {
+		isoPathDefined := IsoPath != ""
+		if isoPathDefined {
+			log.Debugf("Skipping to add docker repo on %s. Because iso repo defined.", kubeNode.IP.String())
+		}
+		if repo.Enabled && !isoPathDefined {
 			util.StartSpinner("Adding docker repo")
 			keyPath := os.AddGpgKey(repo.Key, repo.ShortName(), kubeNode.IP)
 			os.AddRepository(repo.Name, repo.ShortName(), repo.ShortName(), repo.Address, keyPath, kubeNode.IP)
@@ -293,7 +366,11 @@ func removeKubePackagesIfNecessary() map[string]bool {
 	repo := cfg.DeploymentCfg.Kubernetes.Repo
 	installationRequired := make(map[string]bool)
 	for _, kubeNode := range cfg.DeploymentCfg.Nodes {
-		if repo.Enabled {
+		isoPathDefined := IsoPath != ""
+		if isoPathDefined {
+			log.Debugf("Skipping to add kube repo on %s. Because iso repo defined.", kubeNode.IP.String())
+		}
+		if repo.Enabled && !isoPathDefined {
 			util.StartSpinner("Adding kubernetes repo")
 			var repoName string
 			if strings.Contains(repo.Address, "{version}") {
@@ -442,7 +519,7 @@ func installEtcd() {
 	var err error
 	etcdUrl = cfg.DeploymentCfg.GetEtcdExactUrl(EtcdVersion)
 	etcdCompressedFile = etcdUrl[strings.LastIndex(etcdUrl, "/")+1:]
-	fileOnNode := fmt.Sprintf("%s/%s", path.GetTKubeResourcesDir(), etcdCompressedFile)
+	var filePath string
 	var firstNode model.KubeNode
 	var etcdFileExists bool
 	var skipInstallEtcd []string
@@ -462,13 +539,18 @@ func installEtcd() {
 		}
 		if i == 0 {
 			firstNode = kubeNode
-			etcdFileExists = os.IsFileExistsOn(fileOnNode, firstNode.IP)
+			etcdFolder := path.GetTKubeTmpDir(kubeNode.IP)
+			if IsoPath != "" {
+				etcdFolder = fmt.Sprintf("%s/etcd", constant.IsoMountDir)
+			}
+			filePath = fmt.Sprintf("%s/%s", etcdFolder, etcdCompressedFile)
+			etcdFileExists = os.IsFileExistsOn("", filePath, firstNode.IP)
 		}
 		if etcdFileExists {
 			util.StartSpinner(fmt.Sprintf("Transferring \"%s\" for %s to %s",
 				etcdCompressedFile, firstNode.IP, kubeNode.IP))
-			err = os.TransferFile(fileOnNode,
-				fmt.Sprintf("%s/%s", path.GetTKubeTmpDir(kubeNode.IP), etcdCompressedFile), firstNode.IP, kubeNode.IP)
+			err = os.TransferFile(filePath, fmt.Sprintf("%s/%s", path.GetTKubeTmpDir(kubeNode.IP), etcdCompressedFile),
+				firstNode.IP, kubeNode.IP)
 			if err != nil {
 				os.Exit(err.Error(), 1)
 			}
@@ -589,7 +671,7 @@ func installHelm() {
 	var err error
 	helmUrl = cfg.DeploymentCfg.GetHelmExactUrl(HelmVersion)
 	helmCompressedFile = helmUrl[strings.LastIndex(helmUrl, "/")+1:]
-	fileOnNode := fmt.Sprintf("%s/%s", path.GetTKubeResourcesDir(), helmCompressedFile)
+	var filePath string
 	var firstNode model.KubeNode
 	var helmFileExists bool
 	var skipInstallHelm []string
@@ -608,13 +690,18 @@ func installHelm() {
 		}
 		if i == 0 {
 			firstNode = kubeNode
-			helmFileExists = os.IsFileExistsOn(fileOnNode, firstNode.IP)
+			helmFolder := path.GetTKubeTmpDir(kubeNode.IP)
+			if IsoPath != "" {
+				helmFolder = fmt.Sprintf("%s/helm", constant.IsoMountDir)
+			}
+			filePath = fmt.Sprintf("%s/%s", helmFolder, helmCompressedFile)
+			helmFileExists = os.IsFileExistsOn("", filePath, firstNode.IP)
 		}
 		if helmFileExists {
 			util.StartSpinner(fmt.Sprintf("Transferring \"%s\" for %s to %s",
 				helmCompressedFile, firstNode.IP, kubeNode.IP))
-			err = os.TransferFile(fileOnNode,
-				fmt.Sprintf("%s/%s", path.GetTKubeTmpDir(kubeNode.IP), helmCompressedFile), firstNode.IP, kubeNode.IP)
+			err = os.TransferFile(filePath, fmt.Sprintf("%s/%s", path.GetTKubeTmpDir(kubeNode.IP), helmCompressedFile),
+				firstNode.IP, kubeNode.IP)
 			if err != nil {
 				os.Exit(err.Error(), 1)
 			}
@@ -673,16 +760,20 @@ func initKubernetes() {
 	os.RunCommandOn(fmt.Sprintf("sudo kubeadm init --config %s/kubeadm-config.yaml --upload-certs",
 		path.GetTKubeCfgDir()), firstMasterNode.IP, false)
 	os.RunCommandOn("mkdir -p $HOME/.kube", firstMasterNode.IP, true)
-	os.RunCommandOn("sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config", firstMasterNode.IP, true)
+	os.RunCommandOn("sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config", firstMasterNode.IP, true)
 	os.RunCommandOn("sudo chown $(id -u):$(id -g) $HOME/.kube/config", firstMasterNode.IP, true)
 	os.RunCommandOn("sudo mkdir -p /root/.kube", firstMasterNode.IP, true)
-	os.RunCommandOn("sudo cp -i /etc/kubernetes/admin.conf /root/.kube/config", firstMasterNode.IP, true)
+	os.RunCommandOn("sudo cp /etc/kubernetes/admin.conf /root/.kube/config", firstMasterNode.IP, true)
 	os.RunCommandOn("sudo chown $(id -u):$(id -g) /root/.kube/config", firstMasterNode.IP, true)
 	util.StartSpinner(fmt.Sprintf("Applying calico config \"%s\" with version", getCalicoVersion()))
 	os.RunCommandOn(fmt.Sprintf("mkdir -p %s", path.GetTKubeTmpDir(firstMasterNode.IP)), firstMasterNode.IP, true)
-	if strings.HasPrefix(cfg.DeploymentCfg.Kubernetes.Calico.Url, "/") { // check local file
-		os.RunCommandOn(fmt.Sprintf("cp %s %s/calico.yaml", cfg.DeploymentCfg.Kubernetes.Calico.Url,
-			path.GetTKubeTmpDir(firstMasterNode.IP)), firstMasterNode.IP, true)
+	var calicoUrl string
+	if IsoPath != "" {
+		calicoUrl = fmt.Sprintf("%s/calico/calico-%s.yaml", constant.IsoMountDir, CalicoVersion)
+	}
+	if strings.HasPrefix(calicoUrl, "/") { // check local file
+		os.RunCommandOn(fmt.Sprintf("mkdir -p %s && sudo cp %s %s/calico.yaml", path.GetTKubeTmpDir(firstMasterNode.IP),
+			calicoUrl, path.GetTKubeTmpDir(firstMasterNode.IP)), firstMasterNode.IP, true)
 	} else {
 		os.RunCommandOn(fmt.Sprintf("rm -f %s/calico.yaml && wget -nc -qO %s/calico.yaml %s --no-check-certificate",
 			path.GetTKubeTmpDir(firstMasterNode.IP), path.GetTKubeTmpDir(firstMasterNode.IP),
@@ -728,7 +819,7 @@ func initKubernetes() {
 		kube.UpdateServerInfoOnKubeletConf(masterNode.IP)
 		os.RunCommandOn("sudo service kubelet restart", masterNode.IP, true)
 		os.RunCommandOn("mkdir -p $HOME/.kube", masterNode.IP, true)
-		os.RunCommandOn("sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config", masterNode.IP, true)
+		os.RunCommandOn("sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config", masterNode.IP, true)
 		os.RunCommandOn("sudo chown $(id -u):$(id -g) $HOME/.kube/config", masterNode.IP, true)
 	}
 	var joinAsWorkerCmd string

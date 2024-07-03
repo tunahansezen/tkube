@@ -16,7 +16,6 @@ const (
 	fsDebug            = "d"
 	fAuthMap           = "auth-map"
 	fRemoteNode        = "remote"
-	fOffline           = "offline"
 	fDockerVersion     = "docker"
 	fContainerdVersion = "containerd"
 	fEtcdVersion       = "etcd"
@@ -24,6 +23,7 @@ const (
 	fCalicoVersion     = "calico"
 	fHelmVersion       = "helm"
 	fDockerPrune       = "docker-prune"
+	fIso               = "iso"
 )
 
 // RootCmd represents the base command when called without any subcommands
@@ -60,7 +60,6 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(&core.AuthMapStr, fAuthMap, "", "", "SSH auth information")
 	RootCmd.PersistentFlags().IPVarP(&os.RemoteNodeIP, fRemoteNode, "", nil,
 		"if node defined, remote installation will be processed")
-	RootCmd.PersistentFlags().BoolVarP(&core.Offline, fOffline, "", false, "Offline installation")
 	RootCmd.PersistentFlags().StringVarP(&core.DockerVersion, fDockerVersion, "", core.DefaultDockerVersion,
 		"docker version")
 	RootCmd.PersistentFlags().StringVarP(&core.ContainerdVersion, fContainerdVersion, "", core.DefaultContainerdVersion,
@@ -75,4 +74,5 @@ func init() {
 		"helm version")
 	RootCmd.PersistentFlags().BoolVarP(&core.DockerPrune, fDockerPrune, "", core.DefaultDockerPrune,
 		"prune all docker images and other data")
+	RootCmd.PersistentFlags().StringVarP(&core.IsoPath, fIso, "", "", "ISO file path for offline installation")
 }

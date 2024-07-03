@@ -30,6 +30,7 @@ go.work
 tkube
 *.deb
 *.rpm
+output
 
 sca-report
 .vagrant

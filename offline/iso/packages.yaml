@@ -1,0 +1,8 @@
+common:
+  - sshpass
+  - bash-completion
+  - net-tools
+centos:
+  - yum-utils
+  - yum-plugin-versionlock
+ubuntu: []

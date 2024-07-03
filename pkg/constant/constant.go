@@ -5,6 +5,8 @@ const (
 	CfgFolder                     = "config"
 	ResourcesFolder               = "resources"
 	TmpFolder                     = "tmp"
+	IsoFilesFolder                = "iso"
+	IsoMountDir                   = "/mnt/tkube"
 	EtcdPkiFolder                 = "/etc/etcd/pki"
 	EtcdCaCertPath                = "/etc/etcd/pki/ca.crt"
 	EtcdCaKeyPath                 = "/etc/etcd/pki/ca.key"

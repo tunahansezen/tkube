@@ -190,7 +190,7 @@ func AddRepository(name, shortname, repoFileName, address, keyPath string, ip ne
 	if OS == Ubuntu {
 		var keyPart string
 		if keyPath == "" {
-			keyPart = ""
+			keyPart = " trusted=yes"
 		} else {
 			keyPart = fmt.Sprintf(" signed-by=%s", keyPath)
 		}
@@ -410,11 +410,24 @@ func IsFolderExistsOn(dir string, ip net.IP) bool {
 	return output != 0
 }
 
-func IsFileExists(path string) bool {
-	return IsFileExistsOn(path, nil)
+func GetMd5(file string) string {
+	return GetMd5On(file, nil)
 }
 
-func IsFileExistsOn(dir string, ip net.IP) bool {
+func GetMd5On(file string, ip net.IP) string {
+	command := fmt.Sprintf("md5=$(md5sum %s | awk '{print \"-n \"$1}')", file)
+	if ip != nil {
+		return RunCommandOn(command, ip, true)
+	} else {
+		return RunCommand(command, true)
+	}
+}
+
+func IsFileExists(md5toCheck, path string) bool {
+	return IsFileExistsOn(md5toCheck, path, nil)
+}
+
+func IsFileExistsOn(md5toCheck, dir string, ip net.IP) bool {
 	command := fmt.Sprintf("[ -f %s ] && echo 1 || echo 0", dir)
 	var output int
 	if ip != nil {
@@ -423,6 +436,18 @@ func IsFileExistsOn(dir string, ip net.IP) bool {
 	} else {
 		out := RunCommand(command, true)
 		output, _ = strconv.Atoi(out)
+	}
+	if output != 0 && md5toCheck != "" {
+		command = fmt.Sprintf("md5=$(md5sum %s | awk '{print \"-n \"$1}') && "+
+			"if [ \"%s\" == \"$md5\" ]; then echo 1; else echo 0; fi", dir, md5toCheck)
+
+		if ip != nil {
+			out := RunCommandOn(command, ip, true)
+			output, _ = strconv.Atoi(out)
+		} else {
+			out := RunCommand(command, true)
+			output, _ = strconv.Atoi(out)
+		}
 	}
 	return output != 0
 }
@@ -563,6 +588,18 @@ func PackageInstalledOn(p string, ip net.IP) (installed bool, version string) {
 		return false, ""
 	}
 	return true, strings.Fields(returnStr)[versionIndex]
+}
+
+func MountISO(mountPath, isoPath string, ip net.IP) {
+	RunCommandOn(fmt.Sprintf("sudo mkdir -p %s && sudo mount -t iso9660 -o loop %s %s",
+		mountPath, isoPath, mountPath), ip, true)
+}
+
+func UmountISO(mountPath string, ip net.IP) {
+	_, err := runCommandOnReturnErr(fmt.Sprintf("mountpoint %s", mountPath), ip, true, true)
+	if err == nil { // means there is a mount point
+		RunCommandOn(fmt.Sprintf("sudo umount %s", mountPath), ip, true)
+	}
 }
 
 func Exit(message string, code int) {

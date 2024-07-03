@@ -33,6 +33,11 @@ func GetTKubeTmpDir(ip net.IP) string {
 		constant.CfgRootFolder, constant.TmpFolder))
 }
 
+func GetTKubeIsoFilesDir(ip net.IP) string {
+	return fmt.Sprintf(fmt.Sprintf("/home/%s/%s/%s", conn.Nodes[ip.String()].SSHUser,
+		constant.CfgRootFolder, constant.IsoFilesFolder))
+}
+
 func CalculatePaths() {
 	homePath = os.RunCommand("echo $HOME", true)
 	tkubeMainDir = fmt.Sprintf("%s/%s", homePath, constant.CfgRootFolder)

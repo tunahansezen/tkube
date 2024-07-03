@@ -195,7 +195,7 @@ func (dc DeploymentConfig) GetCalicoExactUrl(calicoVersion string) (exactUrl str
 		if calicoSemVer.GreaterThan(calicoArchivedSemVer) {
 			url = "https://raw.githubusercontent.com/projectcalico/calico/v{version}/manifests/calico.yaml"
 		} else {
-			url = "https://docs.projectcalico.org/archive/v{version}/manifests/calico.yaml"
+			url = "https://projectcalico.docs.tigera.io/archive/v{version}/manifests/calico.yaml"
 		}
 		return strings.ReplaceAll(url, "{version}", calicoVersion)
 	} else {
