@@ -25,9 +25,11 @@ packages:
   - bash-completion
   - net-tools
 keepalived:
-  enabled: false
-  virtualIP: 127.0.0.1
-  virtualRouterId: 1
+  enabled: true
+  virtualIP: 192.168.50.40
+  virtualRouterId: 59
+  priority: 100
+  authPass: tkube
 containerd:
   cri:
     sandboxImage: pause:3.9

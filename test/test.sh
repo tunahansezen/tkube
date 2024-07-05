@@ -9,6 +9,7 @@ skip_vagrant_up=0
 node_ips=("192.168.50.10" "192.168.50.20" "192.168.50.30")
 
 script_dir=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
+version=$(cat $script_dir/../VERSION)
 
 ssh_known_host() {
   host="$1"
@@ -67,7 +68,7 @@ case $test_no in
     ssh_known_host "192.168.50.10"
     sshpass -p vagrant ssh vagrant@192.168.50.10 "mkdir -p \$HOME/.tkube/config"
     sshpass -p vagrant scp config/deployment-ubuntu.yaml vagrant@192.168.50.10:/home/vagrant/.tkube/config/deployment.yaml
-    go run ../../main.go install --remote 192.168.50.10
+    go run ../main.go install --remote 192.168.50.10
     if [ "$keep_vagrant" -eq 0 ]; then
       sudo N=3 IMAGE_NAME="bento/ubuntu-22.04" vagrant destroy -f
       sudo rm -rf .vagrant
@@ -78,14 +79,22 @@ case $test_no in
   2)
     cd "$script_dir" || exit
     if [ "$skip_vagrant_up" -eq 0 ]; then
-      sudo vagrant destroy -f
+      sudo N=3 vagrant destroy -f
       sudo rm -rf .vagrant
       sudo N=3 IMAGE_NAME="bento/centos-7.9" vagrant up
     fi
     ssh_known_host "192.168.50.10"
     sshpass -p vagrant ssh vagrant@192.168.50.10 "mkdir -p \$HOME/.tkube/config"
     sshpass -p vagrant scp config/deployment-centos.yaml vagrant@192.168.50.10:/home/vagrant/.tkube/config/deployment.yaml
-    go run ../../main.go install --remote 192.168.50.10
+    sshpass -p vagrant ssh vagrant@192.168.50.10 "sudo sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*"
+    sshpass -p vagrant ssh vagrant@192.168.50.10 "sudo sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*"
+    ssh_known_host "192.168.50.20"
+    sshpass -p vagrant ssh vagrant@192.168.50.20 "sudo sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*"
+    sshpass -p vagrant ssh vagrant@192.168.50.20 "sudo sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*"
+    ssh_known_host "192.168.50.30"
+    sshpass -p vagrant ssh vagrant@192.168.50.30 "sudo sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*"
+    sshpass -p vagrant ssh vagrant@192.168.50.30 "sudo sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*"
+    go run ../main.go install --remote 192.168.50.10 --debug
     if [ "$keep_vagrant" -eq 0 ]; then
       sudo vagrant destroy -f
       sudo N=3 rm -rf .vagrant
@@ -105,17 +114,17 @@ case $test_no in
     sshpass -p vagrant scp config/deployment-ubuntu.yaml vagrant@192.168.50.10:/home/vagrant/.tkube/config/deployment.yaml
     sshpass -p vagrant scp disable-internet-access.sh vagrant@192.168.50.10:/home/vagrant/
     sshpass -p vagrant ssh vagrant@192.168.50.10 "./disable-internet-access.sh"
-    sshpass -p vagrant ssh vagrant@192.168.50.10 "sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
+    sshpass -p vagrant ssh vagrant@192.168.50.10 "[ -f /etc/apt/sources.list ] && sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
     ssh_known_host "192.168.50.20"
     sshpass -p vagrant scp disable-internet-access.sh vagrant@192.168.50.20:/home/vagrant/
     sshpass -p vagrant ssh vagrant@192.168.50.20 "./disable-internet-access.sh"
-    sshpass -p vagrant ssh vagrant@192.168.50.20 "sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
+    sshpass -p vagrant ssh vagrant@192.168.50.20 "[ -f /etc/apt/sources.list ] && sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
     ssh_known_host "192.168.50.30"
     sshpass -p vagrant scp disable-internet-access.sh vagrant@192.168.50.30:/home/vagrant/
     sshpass -p vagrant ssh vagrant@192.168.50.30 "./disable-internet-access.sh"
-    sshpass -p vagrant ssh vagrant@192.168.50.30 "sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
-    sshpass -p vagrant scp ../offline/output/ubuntu-22.04_kube-1.30.2_registry-1.0.0.iso vagrant@192.168.50.10:/home/vagrant/
-    go run ../main.go install --remote 192.168.50.10 --iso /home/vagrant/ubuntu-22.04_kube-1.30.2_registry-1.0.0.iso
+    sshpass -p vagrant ssh vagrant@192.168.50.30 "[ -f /etc/apt/sources.list ] && sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
+    sshpass -p vagrant scp ../offline/output/ubuntu-22.04_kube-1.30.2_registry-${version}.iso vagrant@192.168.50.10:/home/vagrant/
+    go run ../main.go install --remote 192.168.50.10 --iso /home/vagrant/ubuntu-22.04_kube-1.30.2_registry-${version}.iso
     if [ "$keep_vagrant" -eq 0 ]; then
       sudo N=3 vagrant destroy -f
       sudo rm -rf .vagrant
@@ -135,17 +144,17 @@ case $test_no in
     sshpass -p vagrant scp config/deployment-ubuntu.yaml vagrant@192.168.50.10:/home/vagrant/.tkube/config/deployment.yaml
     sshpass -p vagrant scp disable-internet-access.sh vagrant@192.168.50.10:/home/vagrant/
     sshpass -p vagrant ssh vagrant@192.168.50.10 "./disable-internet-access.sh"
-    sshpass -p vagrant ssh vagrant@192.168.50.10 "sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
+    sshpass -p vagrant ssh vagrant@192.168.50.10 "[ -f /etc/apt/sources.list ] && sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
     ssh_known_host "192.168.50.20"
     sshpass -p vagrant scp disable-internet-access.sh vagrant@192.168.50.20:/home/vagrant/
     sshpass -p vagrant ssh vagrant@192.168.50.20 "./disable-internet-access.sh"
-    sshpass -p vagrant ssh vagrant@192.168.50.20 "sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
+    sshpass -p vagrant ssh vagrant@192.168.50.20 "[ -f /etc/apt/sources.list ] && sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
     ssh_known_host "192.168.50.30"
     sshpass -p vagrant scp disable-internet-access.sh vagrant@192.168.50.30:/home/vagrant/
     sshpass -p vagrant ssh vagrant@192.168.50.30 "./disable-internet-access.sh"
-    sshpass -p vagrant ssh vagrant@192.168.50.30 "sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
-    sshpass -p vagrant scp ../offline/output/ubuntu-18.04_kube-1.18.3_registry-1.0.0.iso vagrant@192.168.50.10:/home/vagrant/
-    go run ../main.go install --remote 192.168.50.10 --iso /home/vagrant/ubuntu-18.04_kube-1.18.3_registry-1.0.0.iso
+    sshpass -p vagrant ssh vagrant@192.168.50.30 "[ -f /etc/apt/sources.list ] && sudo mv /etc/apt/sources.list /etc/apt/sources.list.old"
+    sshpass -p vagrant scp ../offline/output/ubuntu-18.04_kube-1.18.3_registry-${version}.iso vagrant@192.168.50.10:/home/vagrant/
+    go run ../main.go install --remote 192.168.50.10 --iso /home/vagrant/ubuntu-18.04_kube-1.18.3_registry-${version}.iso
     if [ "$keep_vagrant" -eq 0 ]; then
       sudo N=3 vagrant destroy -f
       sudo rm -rf .vagrant
@@ -165,17 +174,17 @@ case $test_no in
     sshpass -p vagrant scp config/deployment-centos.yaml vagrant@192.168.50.10:/home/vagrant/.tkube/config/deployment.yaml
     sshpass -p vagrant scp disable-internet-access.sh vagrant@192.168.50.10:/home/vagrant/
     sshpass -p vagrant ssh vagrant@192.168.50.10 "./disable-internet-access.sh"
-    sshpass -p vagrant ssh vagrant@192.168.50.10 "sudo mv /etc/yum.repos.d /etc/yum.repos.d.old && sudo mkdir /etc/yum.repos.d"
+    sshpass -p vagrant ssh vagrant@192.168.50.10 "[ -d /etc/yum.repos.d ] && sudo mv /etc/yum.repos.d /etc/yum.repos.d.old && sudo mkdir /etc/yum.repos.d"
     ssh_known_host "192.168.50.20"
     sshpass -p vagrant scp disable-internet-access.sh vagrant@192.168.50.20:/home/vagrant/
     sshpass -p vagrant ssh vagrant@192.168.50.20 "./disable-internet-access.sh"
-    sshpass -p vagrant ssh vagrant@192.168.50.20 "sudo mv /etc/yum.repos.d /etc/yum.repos.d.old && sudo mkdir /etc/yum.repos.d"
+    sshpass -p vagrant ssh vagrant@192.168.50.20 "[ -d /etc/yum.repos.d ] && sudo mv /etc/yum.repos.d /etc/yum.repos.d.old && sudo mkdir /etc/yum.repos.d"
     ssh_known_host "192.168.50.30"
     sshpass -p vagrant scp disable-internet-access.sh vagrant@192.168.50.30:/home/vagrant/
     sshpass -p vagrant ssh vagrant@192.168.50.30 "./disable-internet-access.sh"
-    sshpass -p vagrant ssh vagrant@192.168.50.30 "sudo mv /etc/yum.repos.d /etc/yum.repos.d.old && sudo mkdir /etc/yum.repos.d"
-    sshpass -p vagrant scp ../offline/output/centos-7_kube-1.30.2_registry-1.0.0.iso vagrant@192.168.50.10:/home/vagrant/
-    go run ../main.go install --remote 192.168.50.10 --iso /home/vagrant/centos-7_kube-1.30.2_registry-1.0.0.iso
+    sshpass -p vagrant ssh vagrant@192.168.50.30 "[ -d /etc/yum.repos.d ] && sudo mv /etc/yum.repos.d /etc/yum.repos.d.old && sudo mkdir /etc/yum.repos.d"
+    sshpass -p vagrant scp ../offline/output/centos-7_kube-1.30.2_registry-${version}.iso vagrant@192.168.50.10:/home/vagrant/
+    go run ../main.go install --remote 192.168.50.10 --iso /home/vagrant/centos-7_kube-1.30.2_registry-${version}.iso
     if [ "$keep_vagrant" -eq 0 ]; then
       sudo N=3 vagrant destroy -f
       sudo rm -rf .vagrant

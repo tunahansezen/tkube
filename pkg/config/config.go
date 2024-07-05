@@ -158,10 +158,26 @@ func askDeploymentConfig() (err error) {
 			if err != nil {
 				return err
 			}
+			DeploymentCfg.Keepalived.VirtualRouterId, err = util.AskInt("keepalived virtual router ID", false,
+				util.ZeroTo255Validator)
+			if err != nil {
+				return err
+			}
+			DeploymentCfg.Keepalived.Priority, err = util.AskInt("keepalived priority", false, util.ZeroTo255Validator)
+			if err != nil {
+				return err
+			}
+			DeploymentCfg.Keepalived.AuthPass, err = util.AskString("keepalived priority", false, util.CommonValidator)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 		if DeploymentCfg.Keepalived.VirtualIP == nil {
 			DeploymentCfg.Keepalived.VirtualIP = net.ParseIP("127.0.0.1")
+			DeploymentCfg.Keepalived.VirtualRouterId = 59
+			DeploymentCfg.Keepalived.Priority = 100
+			DeploymentCfg.Keepalived.AuthPass = "tkube"
 		}
 	}
 	if DeploymentCfg.Keepalived.Enabled {

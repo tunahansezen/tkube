@@ -454,15 +454,22 @@ func IsFileExistsOn(md5toCheck, dir string, ip net.IP) bool {
 
 func CreateFile(data []byte, dstFile string, ip net.IP) {
 	folder := dstFile[:strings.LastIndexAny(dstFile, "/")]
+	fileName := dstFile[strings.LastIndexAny(dstFile, "/")+1:]
+	tempDst := fmt.Sprintf("/tmp/%s", fileName)
 	if ip == nil {
 		err := os.MkdirAll(folder, os.FileMode(0777))
 		if err != nil {
 			log.Debugf("Error occurred while creating \"%s\" folder", folder)
 			Exit(err.Error(), 1)
 		}
-		err = os.WriteFile(dstFile, data, os.FileMode(0666))
+		err = os.WriteFile(tempDst, data, os.FileMode(0666))
 		if err != nil {
 			log.Debugf("Error occurred while writing \"%s\" file", dstFile)
+			Exit(err.Error(), 1)
+		}
+		_, err = localRun(fmt.Sprintf("sudo mv %s %s", tempDst, dstFile), true)
+		if err != nil {
+			log.Debugf("Error occurred while moving \"%s\" file", dstFile)
 			Exit(err.Error(), 1)
 		}
 	} else {
@@ -471,9 +478,14 @@ func CreateFile(data []byte, dstFile string, ip net.IP) {
 			cmd = fmt.Sprintf("sudo %s", cmd)
 		}
 		RunCommandOn(cmd, ip, true)
-		err := conn.SendFile(ip, bytes.NewReader(data), dstFile)
+		err := conn.SendFile(ip, bytes.NewReader(data), tempDst)
 		if err != nil {
 			log.Debugf("Error occurred while sending \"%s\" file to %s", dstFile, ip)
+			Exit(err.Error(), 1)
+		}
+		_, err = runCommandOnReturnErr(fmt.Sprintf("sudo mv %s %s", tempDst, dstFile), ip, true, true)
+		if err != nil {
+			log.Debugf("Error occurred while moving \"%s\" file", dstFile)
 			Exit(err.Error(), 1)
 		}
 	}
@@ -599,6 +611,12 @@ func UmountISO(mountPath string, ip net.IP) {
 	_, err := runCommandOnReturnErr(fmt.Sprintf("mountpoint %s", mountPath), ip, true, true)
 	if err == nil { // means there is a mount point
 		RunCommandOn(fmt.Sprintf("sudo umount %s", mountPath), ip, true)
+	}
+}
+
+func ThrowIfError(err error, code int) {
+	if err != nil {
+		Exit(err.Error(), code)
 	}
 }
 

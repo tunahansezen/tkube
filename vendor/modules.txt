@@ -75,6 +75,9 @@ github.com/json-iterator/go
 # github.com/kr/fs v0.1.0
 ## explicit
 github.com/kr/fs
+# github.com/lithammer/dedent v1.1.0
+## explicit
+github.com/lithammer/dedent
 # github.com/magiconair/properties v1.8.7
 ## explicit; go 1.19
 github.com/magiconair/properties

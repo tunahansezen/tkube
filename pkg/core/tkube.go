@@ -3,6 +3,7 @@ package core
 import (
 	cfg "com.github.tunahansezen/tkube/pkg/config"
 	"com.github.tunahansezen/tkube/pkg/config/model"
+	"com.github.tunahansezen/tkube/pkg/config/templates"
 	conn "com.github.tunahansezen/tkube/pkg/connection"
 	"com.github.tunahansezen/tkube/pkg/constant"
 	"com.github.tunahansezen/tkube/pkg/kube"
@@ -743,7 +744,33 @@ func installHelm() {
 }
 
 func installKeepAliveD() {
-	// todo implement
+	for _, masterNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+		os.RunCommandOn("sudo mkdir -p /etc/keepalived", masterNode.IP, true)
+		os.RunCommandOn("sudo chmod -R 777 /etc/keepalived", masterNode.IP, true)
+		os.InstallPackage("keepalived", masterNode.IP)
+		keepalivedConfVars := util.TemplateVars{
+			"Interface":       masterNode.Interface,
+			"VirtualRouterID": cfg.DeploymentCfg.Keepalived.VirtualRouterId,
+			"VirtualIP":       cfg.DeploymentCfg.Keepalived.VirtualIP,
+			"Priority":        100,     // todo add to cfg
+			"AuthPass":        "tkube", // todo add to cfg
+		}
+		rendered, err := util.RenderTemplate(templates.KeepalivedConf, keepalivedConfVars)
+		os.ThrowIfError(err, 1)
+		os.CreateFile([]byte(rendered), fmt.Sprintf("/etc/keepalived/%s", templates.KeepalivedConf.Name()),
+			masterNode.IP)
+		checkApiserverShVars := util.TemplateVars{
+			"VirtualIP": cfg.DeploymentCfg.Keepalived.VirtualIP,
+		}
+		rendered, err = util.RenderTemplate(templates.CheckApiserverSh, checkApiserverShVars)
+		os.ThrowIfError(err, 1)
+		os.CreateFile([]byte(rendered), fmt.Sprintf("/etc/keepalived/%s", templates.CheckApiserverSh.Name()),
+			masterNode.IP)
+		os.RunCommandOn(fmt.Sprintf("sudo chmod -R 644 %s", "/etc/keepalived"), masterNode.IP, true)
+		os.RunCommandOn(fmt.Sprintf("sudo chmod +x /etc/keepalived/%s", templates.CheckApiserverSh.Name()),
+			masterNode.IP, true)
+		os.RunCommandOn("sudo service keepalived restart", masterNode.IP, true)
+	}
 }
 
 func initKubernetes() {

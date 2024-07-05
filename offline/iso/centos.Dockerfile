@@ -1,6 +1,6 @@
 ARG OS_NAME=ubuntu
 ARG OS_VERSION=22.04
-FROM $OS_NAME:$OS_VERSION as os
+FROM $OS_NAME:$OS_VERSION AS os
 ARG OS_NAME
 ARG OS_VERSION
 ARG VERSION=0.0.0
@@ -11,6 +11,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 ARG PKGS=.common[],.$OS_NAME[]
 ARG MANDATORY_PACKAGES="tzdata ca-certificates curl wget gnupg2 yum-utils createrepo mkisofs epel-release"
+
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* \
+    && sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
 
 RUN yum install -q -y $MANDATORY_PACKAGES
 

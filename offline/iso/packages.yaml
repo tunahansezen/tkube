@@ -2,7 +2,36 @@ common:
   - sshpass
   - bash-completion
   - net-tools
+  - haproxy
+  - keepalived
+  - ceph-common
+  - lvm2
+  - telnet
+  - tcpdump
+  - socat
+  - openssl
+  - chrony
+  - conntrack
+  - ipvsadm
+  - ipset
+  - psmisc
+  - ebtables
 centos:
   - yum-utils
   - yum-plugin-versionlock
-ubuntu: []
+  - nfs-utils
+  - bind-utils
+  - glusterfs-fuse
+  - lz4
+  - nss
+  - nss-sysinit
+  - nss-tools
+  - conntrack-tools
+ubuntu:
+  - dnsutils
+  - git
+  - glusterfs-client
+  - gnupg-agent
+  - nfs-common
+  - openssh-server
+  - sudo

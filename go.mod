@@ -9,6 +9,7 @@ require (
 	github.com/guumaster/logsymbols v0.3.1
 	github.com/hashicorp/go-version v1.6.0
 	github.com/invopop/yaml v0.2.0
+	github.com/lithammer/dedent v1.1.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/sftp v1.13.6

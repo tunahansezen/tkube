@@ -40,6 +40,8 @@ type KeepAliveD struct {
 	Enabled         bool   `yaml:"enabled"`
 	VirtualIP       net.IP `yaml:"virtualIP"`
 	VirtualRouterId int    `yaml:"virtualRouterId"`
+	Priority        int    `yaml:"priority"`
+	AuthPass        string `json:"authPass"`
 }
 
 type ContainerD struct {

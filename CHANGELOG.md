@@ -1,3 +1,11 @@
+## v1.2.0
+
+### Added or Changed
+- Keepalived integration
+- Some offline installation fixes
+- Extra packages added to offline installation iso files
+- CentOS online repo url fixes
+
 ## v1.1.0
 
 ### Added or Changed

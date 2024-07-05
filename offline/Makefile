@@ -166,6 +166,7 @@ iso: check-vars calculate_repos calculate_calico
     	  --build-arg ETCD_URL=$(ETCD_URL) \
     	  --build-arg HELM_VERSION=$(HELM_VERSION) \
     	  --build-arg HELM_URL=$(HELM_URL) \
+    	  --network host \
     	  $(EXTRA_DOCKER_BUILD_ARGS) \
     	  --output $(DEST_PATH) \
     	  -f iso/$(OS_NAME).Dockerfile .

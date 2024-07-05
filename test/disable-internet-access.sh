@@ -10,3 +10,7 @@ sudo iptables -A OUTPUT -d 10.244.0.0/16 -j ACCEPT
 sudo iptables -A INPUT -s 10.244.0.0/16 -j ACCEPT
 sudo iptables -A OUTPUT -p ipip -j ACCEPT
 sudo iptables -A INPUT -p ipip -j ACCEPT
+sudo iptables -A INPUT -p vrrp -j ACCEPT
+sudo iptables -A OUTPUT -p vrrp -j ACCEPT
+sudo iptables -A INPUT -p icmp -j ACCEPT
+sudo iptables -A OUTPUT -p icmp -j ACCEPT

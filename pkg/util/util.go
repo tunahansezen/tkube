@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -63,6 +64,22 @@ var (
 		return nil
 	}
 )
+
+func AskInt(msg string, mask bool, validate func(string) error) (int, error) {
+	StopSpinner("", logsymbols.Success)
+	prompt := promptui.Prompt{
+		Label:    msg,
+		Validate: validate,
+	}
+	if mask {
+		prompt.Mask = '*'
+	}
+	output, err := prompt.Run()
+	if err != nil {
+		return -1, err
+	}
+	return strconv.Atoi(output)
+}
 
 func AskString(msg string, mask bool, validate func(string) error) (string, error) {
 	StopSpinner("", logsymbols.Success)
@@ -138,4 +155,14 @@ func GetMajorVersion(version string) string {
 		return parts[0] + "." + parts[1]
 	}
 	return version
+}
+
+type TemplateVars map[string]interface{}
+
+func RenderTemplate(tmpl *template.Template, variables map[string]interface{}) (string, error) {
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, variables); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
