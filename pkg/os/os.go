@@ -316,7 +316,8 @@ func InstallPackage(ps string, ip net.IP) {
 	var cmd string
 	if len(pCombined) > 0 {
 		if OS == Ubuntu {
-			cmd = "sudo apt-get install -f -y --allow-unauthenticated --allow-downgrades %s"
+			cmd = "sudo apt-get install -f -y --allow-unauthenticated --allow-downgrades " +
+				"-o DPkg::Options::=\"--force-confnew\" %s"
 		} else if OS == CentOS {
 			cmd = "sudo yum install -y --setopt=obsoletes=0 %s"
 		}
@@ -326,7 +327,8 @@ func InstallPackage(ps string, ip net.IP) {
 	}
 	if len(pCombinedDowngraded) > 0 {
 		if OS == Ubuntu {
-			cmd = "sudo apt-get install -f -y --allow-unauthenticated --allow-downgrades %s"
+			cmd = "sudo apt-get install -f -y --allow-unauthenticated --allow-downgrades " +
+				"-o DPkg::Options::=\"--force-confnew\" %s"
 		} else if OS == CentOS {
 			cmd = "sudo yum downgrade -y --setopt=obsoletes=0 %s"
 		}

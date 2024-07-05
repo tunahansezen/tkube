@@ -1,3 +1,8 @@
+## v1.2.1
+
+### Added or Changed
+- Keepalived installation config fix
+
 ## v1.2.0
 
 ### Added or Changed
