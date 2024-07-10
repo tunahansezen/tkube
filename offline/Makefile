@@ -146,7 +146,7 @@ endif
 endif
 
 iso: check-vars calculate_repos calculate_calico
-	docker build \
+	DOCKER_BUILDKIT=1 docker build \
     	  -t tkube:$(VERSION) \
     	  --build-arg OS_NAME=$(OS_NAME) \
     	  --build-arg OS_VERSION=$(OS_VERSION) \
