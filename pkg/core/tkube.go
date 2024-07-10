@@ -131,22 +131,22 @@ func MasterConfigs() {
 	if IsoPath != "" {
 		kubeSemVer, _ := version.NewVersion(KubeVersion)
 		kube124Ver, _ := version.NewVersion("1.24")
-		for _, masterNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
-			util.StartSpinner(fmt.Sprintf("Loading images on \"%s\"", masterNode.Hostname))
+		for _, node := range cfg.DeploymentCfg.Nodes {
+			util.StartSpinner(fmt.Sprintf("Loading images on \"%s\"", node.Hostname))
 			if kubeSemVer.GreaterThanOrEqual(kube124Ver) {
 				os.RunCommandOn(fmt.Sprintf("ls -1 %s/kubernetes/images/*.tar | "+
 					"xargs --no-run-if-empty -L 1 sudo ctr -n=k8s.io images import", constant.IsoMountDir),
-					masterNode.IP, true)
+					node.IP, true)
 				os.RunCommandOn(fmt.Sprintf("ls -1 %s/calico/images/*.tar | "+
 					"xargs --no-run-if-empty -L 1 sudo ctr -n=k8s.io images import", constant.IsoMountDir),
-					masterNode.IP, true)
+					node.IP, true)
 			} else {
 				os.RunCommandOn(fmt.Sprintf("ls -1 %s/kubernetes/images/*.tar | "+
 					"xargs --no-run-if-empty -L 1 sudo docker load -i", constant.IsoMountDir),
-					masterNode.IP, true)
+					node.IP, true)
 				os.RunCommandOn(fmt.Sprintf("ls -1 %s/calico/images/*.tar | "+
 					"xargs --no-run-if-empty -L 1 sudo docker load -i", constant.IsoMountDir),
-					masterNode.IP, true)
+					node.IP, true)
 			}
 			util.StopSpinner("", logsymbols.Success)
 		}
