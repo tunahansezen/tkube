@@ -167,7 +167,7 @@ func askDeploymentConfig() (err error) {
 			if err != nil {
 				return err
 			}
-			DeploymentCfg.Keepalived.AuthPass, err = util.AskString("keepalived priority", false, util.CommonValidator)
+			DeploymentCfg.Keepalived.AuthPass, err = util.AskString("keepalived auth pass", false, util.CommonValidator)
 			if err != nil {
 				return err
 			}
