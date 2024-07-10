@@ -1,3 +1,8 @@
+## v1.2.2
+
+### Added or Changed
+- Makefile OS_RELEASE fix
+
 ## v1.2.1
 
 ### Added or Changed

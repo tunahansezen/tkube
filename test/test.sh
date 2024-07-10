@@ -9,7 +9,11 @@ skip_vagrant_up=0
 node_ips=("192.168.50.10" "192.168.50.20" "192.168.50.30")
 
 script_dir=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
-version=$(cat $script_dir/../VERSION)
+if [ -z "$VERSION" ]; then
+  version=$(cat $script_dir/../VERSION)
+else
+  version="$VERSION"
+fi
 
 ssh_known_host() {
   host="$1"

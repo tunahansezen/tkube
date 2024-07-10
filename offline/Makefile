@@ -28,8 +28,8 @@ OS_ARR                   = ubuntu centos
 ubuntu_VERSIONS          = 18.04 20.04 22.04
 centos_VERSIONS          = 7
 define ubuntu_RELEASES
-18.04=bionic
-20.04=focal
+18.04=bionic\
+20.04=focal\
 22.04=jammy
 endef
 define centos_RELEASES
