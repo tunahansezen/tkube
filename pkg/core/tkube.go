@@ -458,24 +458,10 @@ func generateAndDistributeKubeAndEtcdCerts() {
 	// config sh
 	for _, kubeNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
 		os.RunCommandOn(fmt.Sprintf("sudo mkdir -p %s", constant.EtcdPkiFolder), kubeNode.IP, true)
-		os.RunCommandOn(fmt.Sprintf("sudo chmod -R 777 %s", constant.EtcdPkiFolder), kubeNode.IP, true)
 		os.CreateFile(caCert, constant.EtcdCaCertPath, kubeNode.IP)
 		os.CreateFile(caKey, constant.EtcdCaKeyPath, kubeNode.IP)
 		os.CreateFile(etcdKey, constant.EtcdClientKeyPath, kubeNode.IP)
 		os.CreateFile(etcdCert, constant.EtcdClientCertPath, kubeNode.IP)
-		os.RunCommandOn(fmt.Sprintf("sudo chown -R root:root %s", constant.EtcdPkiFolder), kubeNode.IP, true)
-		os.RunCommandOn(fmt.Sprintf("sudo chmod -R 644 %s", constant.EtcdPkiFolder), kubeNode.IP, true)
-
-		// deprecated part
-		os.RunCommandOn(fmt.Sprintf("sudo mkdir -p %s", "/etc/kubernetes/pki/etcd"), kubeNode.IP, true)
-		os.RunCommandOn(fmt.Sprintf("sudo chmod -R 777 %s", "/etc/kubernetes"), kubeNode.IP, true)
-		os.CreateFile(caCert, "/etc/kubernetes/pki/etcd/ca.crt", kubeNode.IP)
-		os.CreateFile(caKey, "/etc/kubernetes/pki/etcd/ca.key", kubeNode.IP)
-		os.CreateFile(etcdKey, "/etc/kubernetes/pki/apiserver-etcd-client.key", kubeNode.IP)
-		os.CreateFile(etcdCert, "/etc/kubernetes/pki/apiserver-etcd-client.crt", kubeNode.IP)
-		os.RunCommandOn(fmt.Sprintf("sudo chown -R root:root %s", "/etc/kubernetes/pki"), kubeNode.IP, true)
-		os.RunCommandOn(fmt.Sprintf("sudo chmod -R 644 %s", "/etc/kubernetes"), kubeNode.IP, true)
-		// deprecated part
 	}
 	util.StopSpinner("", logsymbols.Success)
 }

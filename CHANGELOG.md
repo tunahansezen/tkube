@@ -2,6 +2,10 @@
 
 ### Added or Changed
 - Makefile OS_RELEASE fix
+- Keepalived ask auth message fix
+- mount iso on workers too
+- install iso images on workers too
+- remove deprecated certs path
 
 ## v1.2.1
 
