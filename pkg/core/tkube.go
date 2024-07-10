@@ -70,43 +70,43 @@ func MasterConfigs() {
 	addToEtcHosts()
 	if IsoPath != "" {
 		var firstMasterNode model.KubeNode
-		for i, masterNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+		for i, node := range cfg.DeploymentCfg.Nodes {
 			if i == 0 {
-				firstMasterNode = masterNode
-				os.UmountISO(constant.IsoMountDir, masterNode.IP)
-				os.MountISO(constant.IsoMountDir, IsoPath, masterNode.IP)
+				firstMasterNode = node
+				os.UmountISO(constant.IsoMountDir, node.IP)
+				os.MountISO(constant.IsoMountDir, IsoPath, node.IP)
 				var repoAddress string
 				if os.OS == os.Ubuntu {
 					repoAddress = fmt.Sprintf("file://%s/repo ./", constant.IsoMountDir)
 				} else if os.OS == os.CentOS {
 					repoAddress = fmt.Sprintf("file://%s/repo", constant.IsoMountDir)
 				}
-				os.AddRepository("tkube", "tkube", "tkube", repoAddress, "", masterNode.IP)
-				os.UpdateRepos(masterNode.IP)
-				os.InstallPackage("sshpass", masterNode.IP)
+				os.AddRepository("tkube", "tkube", "tkube", repoAddress, "", node.IP)
+				os.UpdateRepos(node.IP)
+				os.InstallPackage("sshpass", node.IP)
 				continue
 			}
 			isoFile := IsoPath[strings.LastIndex(IsoPath, "/")+1:]
-			if !os.IsFileExistsOn(os.GetMd5On(IsoPath, firstMasterNode.IP), IsoPath, masterNode.IP) {
-				util.StartSpinner(fmt.Sprintf("Transferring \"%s\" file to \"%s\"", isoFile, masterNode.IP))
-				err := os.TransferFile(IsoPath, IsoPath, firstMasterNode.IP, masterNode.IP)
+			if !os.IsFileExistsOn(os.GetMd5On(IsoPath, firstMasterNode.IP), IsoPath, node.IP) {
+				util.StartSpinner(fmt.Sprintf("Transferring \"%s\" file to \"%s\"", isoFile, node.IP))
+				err := os.TransferFile(IsoPath, IsoPath, firstMasterNode.IP, node.IP)
 				if err != nil {
 					os.Exit(err.Error(), 1)
 				}
 				util.StopSpinner("", logsymbols.Success)
 			} else {
-				fmt.Printf("\"%s\" file exist on \"%s\"\n", isoFile, masterNode.IP.String())
+				fmt.Printf("\"%s\" file exist on \"%s\"\n", isoFile, node.IP.String())
 			}
-			os.UmountISO(constant.IsoMountDir, masterNode.IP)
-			os.MountISO(constant.IsoMountDir, IsoPath, masterNode.IP)
+			os.UmountISO(constant.IsoMountDir, node.IP)
+			os.MountISO(constant.IsoMountDir, IsoPath, node.IP)
 			var repoAddress string
 			if os.OS == os.Ubuntu {
 				repoAddress = fmt.Sprintf("file://%s/repo ./", constant.IsoMountDir)
 			} else if os.OS == os.CentOS {
 				repoAddress = fmt.Sprintf("file://%s/repo", constant.IsoMountDir)
 			}
-			os.AddRepository("tkube", "tkube", "tkube", repoAddress, "", masterNode.IP)
-			os.UpdateRepos(masterNode.IP)
+			os.AddRepository("tkube", "tkube", "tkube", repoAddress, "", node.IP)
+			os.UpdateRepos(node.IP)
 		}
 	}
 	addCustomRepos()
