@@ -1,0 +1,81 @@
+nodes:
+  - hostname: node1
+    IP: 192.168.50.10
+    interface: eth1
+    kubeType: master
+    sshUser: vagrant
+    sshPass: vagrant
+  - hostname: node2
+    IP: 192.168.50.20
+    interface: eth1
+    kubeType: master
+    sshUser: vagrant
+    sshPass: vagrant
+  - hostname: node3
+    IP: 192.168.50.30
+    interface: eth1
+    kubeType: master
+    sshUser: vagrant
+    sshPass: vagrant
+  - hostname: node4
+    IP: 192.168.50.40
+    interface: eth1
+    kubeType: worker
+    sshUser: vagrant
+    sshPass: vagrant
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - bash-completion
+  - net-tools
+keepalived:
+  enabled: true
+  virtualIP: 192.168.50.50
+  virtualRouterId: 59
+  priority: 100
+  authPass: tkube
+containerd:
+  cri:
+    sandboxImage: pause:3.9
+docker:
+  repo:
+    enabled: true
+    name: Docker
+    address: https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable
+    key: https://download.docker.com/linux/ubuntu/gpg
+  daemon:
+    execOpts:
+      - native.cgroupdriver=systemd
+    logDriver: json-file
+    logOpts:
+      maxFile: "3"
+      maxSize: 100m
+    registryMirrors: []
+    insecureRegistries: []
+    debug: false
+    experimental: false
+    storageDriver: overlay2
+etcd:
+  downloadUrl: default
+kubernetes:
+  bashCompletion: true
+  repo:
+    enabled: true
+    name: Kubernetes
+    address: https://pkgs.k8s.io/core:/stable:/v{version}/deb/ /
+    key: https://pkgs.k8s.io/core:/stable:/v{version}/deb/Release.key
+  imageRegistry: registry.k8s.io
+  podSubnet: 10.244.0.0/16
+  schedulePodsOnMasters: false
+  calico:
+    url: default
+    envVars: []
+helm:
+  downloadUrl: default
+customRepos:
+  - enabled: false
+    name: Custom Repo 1
+    address: https://customrepo.com/repository/repo stable main
+    key: https://customrepo.com/repository/raw/gpg-keys/customrepo.gpg

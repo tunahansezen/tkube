@@ -46,3 +46,9 @@ Use "tkube [command] --help" for more information about a command.
 ```
 
 Help specific to each command can be found by running `tkube <command> -h`.
+
+Tested with:
+
+OS: ubuntu:20.04\
+vagrant: 2.4.1\
+virtualbox: 7.0.20

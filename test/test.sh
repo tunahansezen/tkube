@@ -196,6 +196,24 @@ case $test_no in
     cd - || exit
     exit 0
     ;;
+  6)
+    cd "$script_dir" || exit
+    if [ "$skip_vagrant_up" -eq 0 ]; then
+      sudo N=4 vagrant destroy -f
+      sudo rm -rf .vagrant
+      sudo N=4 IMAGE_NAME="bento/ubuntu-22.04" vagrant up
+    fi
+    ssh_known_host "192.168.50.10"
+    sshpass -p vagrant ssh vagrant@192.168.50.10 "mkdir -p \$HOME/.tkube/config"
+    sshpass -p vagrant scp config/deployment-ubuntu-workers.yaml vagrant@192.168.50.10:/home/vagrant/.tkube/config/deployment.yaml
+    go run ../main.go install --remote 192.168.50.10 --skip-workers
+    if [ "$keep_vagrant" -eq 0 ]; then
+      sudo N=4 IMAGE_NAME="bento/ubuntu-22.04" vagrant destroy -f
+      sudo rm -rf .vagrant
+    fi
+    cd - || exit
+    exit 0
+    ;;
 esac
 echo -e "$red_color""Test not found""$color_off"
 exit 1

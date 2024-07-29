@@ -49,7 +49,7 @@ func PreRun() {
 	path.CalculatePaths()
 	cfg.ReadConfig()
 	os.RunCommand(fmt.Sprintf("mkdir -p %s", path.GetTKubeResourcesDir()), true)
-	for _, kubeNode := range cfg.DeploymentCfg.Nodes {
+	for _, kubeNode := range cfg.DeploymentCfg.GetKubeNodes() {
 		err := conn.CheckSSHConnection(&conn.Node{IP: kubeNode.IP})
 		if err != nil {
 			os.Exit(err.Error(), 1)

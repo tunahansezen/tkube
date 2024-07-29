@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	DefaultDockerVersion     = "26.1.3"
+	DefaultDockerVersion     = "20.10.24"
 	DefaultContainerdVersion = "auto"
 	DefaultEtcdVersion       = "3.5.14"
 	DefaultKubeVersion       = "1.30.1"
@@ -55,8 +55,8 @@ var (
 	multiMasterDeployment bool
 )
 
-func MasterConfigs() {
-	switch len(cfg.DeploymentCfg.GetMasterKubeNodes()) {
+func Install(nodes model.KubeNodes) {
+	switch len(nodes.GetMasterKubeNodes()) {
 	case 0:
 		os.Exit("No master pod configured", 1)
 	case 1:
@@ -67,10 +67,10 @@ func MasterConfigs() {
 		multiMasterDeployment = true
 	}
 	handleAuthMap()
-	addToEtcHosts()
+	addToEtcHosts(nodes)
 	if IsoPath != "" {
 		var firstMasterNode model.KubeNode
-		for i, node := range cfg.DeploymentCfg.Nodes {
+		for i, node := range nodes.Nodes {
 			if i == 0 {
 				firstMasterNode = node
 				os.UmountISO(constant.IsoMountDir, node.IP)
@@ -109,29 +109,29 @@ func MasterConfigs() {
 			os.UpdateRepos(node.IP)
 		}
 	}
-	addCustomRepos()
-	installPackages()
-	kubeInstReqMap := removeKubePackagesIfNecessary()
-	prepareNodes()
-	installDocker()
-	installKubePackages(kubeInstReqMap)
+	addCustomRepos(nodes)
+	installPackages(nodes)
+	kubeInstReqMap := removeKubePackagesIfNecessary(nodes)
+	prepareNodes(nodes)
+	installDocker(nodes)
+	installKubePackages(nodes, kubeInstReqMap)
 	if multiMasterDeployment {
-		generateAndDistributeKubeAndEtcdCerts()
-		installEtcd()
+		generateAndDistributeKubeAndEtcdCerts(nodes)
+		installEtcd(nodes)
 	} else {
-		for _, kubeNode := range cfg.DeploymentCfg.Nodes {
+		for _, kubeNode := range nodes.GetMasterKubeNodes() {
 			os.RunCommandOn("sudo service etcd stop || true", kubeNode.IP, true)
 			os.RunCommandOn("sudo rm -rf /var/lib/etcd", kubeNode.IP, true)
 		}
 	}
-	installHelm()
+	installHelm(nodes)
 	if cfg.DeploymentCfg.Keepalived.Enabled {
-		installKeepAliveD()
+		installKeepAliveD(nodes)
 	}
 	if IsoPath != "" {
 		kubeSemVer, _ := version.NewVersion(KubeVersion)
 		kube124Ver, _ := version.NewVersion("1.24")
-		for _, node := range cfg.DeploymentCfg.Nodes {
+		for _, node := range nodes.Nodes {
 			util.StartSpinner(fmt.Sprintf("Loading images on \"%s\"", node.Hostname))
 			if kubeSemVer.GreaterThanOrEqual(kube124Ver) {
 				os.RunCommandOn(fmt.Sprintf("ls -1 %s/kubernetes/images/*.tar | "+
@@ -151,7 +151,7 @@ func MasterConfigs() {
 			util.StopSpinner("", logsymbols.Success)
 		}
 	}
-	initKubernetes()
+	initKubernetes(nodes)
 }
 
 func handleAuthMap() {
@@ -171,16 +171,16 @@ func handleAuthMap() {
 	}
 }
 
-func addToEtcHosts() {
-	for _, kubeNode := range cfg.DeploymentCfg.Nodes {
-		for _, h := range cfg.DeploymentCfg.Nodes {
+func addToEtcHosts(nodes model.KubeNodes) {
+	for _, kubeNode := range nodes.Nodes {
+		for _, h := range nodes.Nodes {
 			os.AppendLineOn(fmt.Sprintf("%s %s", h.IP, h.Hostname), "/etc/hosts", true, kubeNode.IP)
 		}
 	}
 }
 
-func prepareNodes() {
-	for _, kubeNode := range cfg.DeploymentCfg.Nodes {
+func prepareNodes(nodes model.KubeNodes) {
+	for _, kubeNode := range nodes.Nodes {
 		os.RunCommandOn("sudo sysctl fs.inotify.max_user_watches=1048576", kubeNode.IP, true)
 		os.RunCommandOn("sudo swapoff -a", kubeNode.IP, true)
 		os.RunCommandOn("sudo mkdir -p /sys/fs/cgroup/cpu,cpuacct", kubeNode.IP, true)
@@ -200,12 +200,12 @@ func prepareNodes() {
 	}
 }
 
-func addCustomRepos() {
+func addCustomRepos(nodes model.KubeNodes) {
 	if IsoPath != "" {
 		log.Debugf("Skipping adding custom repo, because iso repo defined.")
 		return
 	}
-	for _, kubeNode := range cfg.DeploymentCfg.Nodes {
+	for _, kubeNode := range nodes.Nodes {
 		for _, repo := range cfg.DeploymentCfg.CustomRepos {
 			if !repo.Enabled {
 				continue
@@ -233,17 +233,17 @@ func addCustomRepos() {
 	}
 }
 
-func installPackages() {
+func installPackages(nodes model.KubeNodes) {
 	for _, packageName := range cfg.DeploymentCfg.Packages {
-		for _, node := range cfg.DeploymentCfg.Nodes {
+		for _, node := range nodes.Nodes {
 			os.InstallPackage(packageName, node.IP)
 		}
 	}
 }
 
-func installDocker() {
+func installDocker(nodes model.KubeNodes) {
 	repo := cfg.DeploymentCfg.Docker.Repo
-	for _, kubeNode := range cfg.DeploymentCfg.Nodes {
+	for _, kubeNode := range nodes.Nodes {
 		isoPathDefined := IsoPath != ""
 		if isoPathDefined {
 			log.Debugf("Skipping to add docker repo on %s. Because iso repo defined.", kubeNode.IP.String())
@@ -363,10 +363,10 @@ func createDockerDaemonCfgOn(ip net.IP) {
 		path.GetTKubeTmpDir(ip)), ip, true)
 }
 
-func removeKubePackagesIfNecessary() map[string]bool {
+func removeKubePackagesIfNecessary(nodes model.KubeNodes) map[string]bool {
 	repo := cfg.DeploymentCfg.Kubernetes.Repo
 	installationRequired := make(map[string]bool)
-	for _, kubeNode := range cfg.DeploymentCfg.Nodes {
+	for _, kubeNode := range nodes.Nodes {
 		isoPathDefined := IsoPath != ""
 		if isoPathDefined {
 			log.Debugf("Skipping to add kube repo on %s. Because iso repo defined.", kubeNode.IP.String())
@@ -423,8 +423,8 @@ func removeKubePackagesIfNecessary() map[string]bool {
 	return installationRequired
 }
 
-func installKubePackages(installationRequired map[string]bool) {
-	for _, kubeNode := range cfg.DeploymentCfg.Nodes {
+func installKubePackages(nodes model.KubeNodes, installationRequired map[string]bool) {
+	for _, kubeNode := range nodes.Nodes {
 		if installationRequired[kubeNode.IP.String()] {
 			os.InstallPackage(fmt.Sprintf("kubelet=%s kubectl=%s kubeadm=%s", KubeVersion, KubeVersion, KubeVersion),
 				kubeNode.IP)
@@ -444,7 +444,7 @@ func installKubePackages(installationRequired map[string]bool) {
 	}
 }
 
-func generateAndDistributeKubeAndEtcdCerts() {
+func generateAndDistributeKubeAndEtcdCerts(nodes model.KubeNodes) {
 	util.StartSpinner("Generating kube and etcd certs")
 	caCert, _, caKey, err := cfssl.New(model.DefaultKubernetesCSR())
 	if err != nil {
@@ -456,7 +456,7 @@ func generateAndDistributeKubeAndEtcdCerts() {
 	}
 
 	// config sh
-	for _, kubeNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+	for _, kubeNode := range nodes.GetMasterKubeNodes() {
 		os.RunCommandOn(fmt.Sprintf("sudo mkdir -p %s", constant.EtcdPkiFolder), kubeNode.IP, true)
 		os.CreateFile(caCert, constant.EtcdCaCertPath, kubeNode.IP)
 		os.CreateFile(caKey, constant.EtcdCaKeyPath, kubeNode.IP)
@@ -501,7 +501,7 @@ func createEtcdCerts(caCert []byte, caKey []byte) (cert, csrPEM, key []byte, err
 	return cert, csrBytes, key, err
 }
 
-func installEtcd() {
+func installEtcd(nodes model.KubeNodes) {
 	// download and distribute compressed etcd file
 	var err error
 	etcdUrl = cfg.DeploymentCfg.GetEtcdExactUrl(EtcdVersion)
@@ -510,7 +510,7 @@ func installEtcd() {
 	var firstNode model.KubeNode
 	var etcdFileExists bool
 	var skipInstallEtcd []string
-	for i, kubeNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+	for i, kubeNode := range nodes.GetMasterKubeNodes() {
 		etcdExists := os.CommandExists("etcd")
 		etcdCtlExists := os.CommandExists("etcdctl")
 		if etcdExists && etcdCtlExists {
@@ -562,7 +562,7 @@ func installEtcd() {
 
 	// install etcd
 	extractedEtcdFolder := strings.ReplaceAll(etcdCompressedFile, ".tar.gz", "")
-	for _, kubeNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+	for _, kubeNode := range nodes.GetMasterKubeNodes() {
 		os.AppendLineOn("ETCDCTL_API=3", "/etc/environment", true, kubeNode.IP)
 		os.RunCommandOn("sudo service etcd stop || true", kubeNode.IP, true)
 		if !slices.Contains(skipInstallEtcd, kubeNode.IP.String()) {
@@ -577,7 +577,7 @@ func installEtcd() {
 		}
 		os.RunCommandOn("sudo rm -rf /var/lib/etcd", kubeNode.IP, true)
 	}
-	for _, kubeNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+	for _, kubeNode := range nodes.GetMasterKubeNodes() {
 		if slices.Contains(skipInstallEtcd, kubeNode.IP.String()) {
 			continue
 		}
@@ -597,10 +597,10 @@ func installEtcd() {
 		os.Exit(err.Error(), 1)
 	}
 	var clusterAddresses []string
-	for _, k := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+	for _, k := range nodes.GetMasterKubeNodes() {
 		clusterAddresses = append(clusterAddresses, fmt.Sprintf("%s=https://%s:2380", k.Hostname, k.IP))
 	}
-	for _, kubeNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+	for _, kubeNode := range nodes.GetMasterKubeNodes() {
 		util.StartSpinner(fmt.Sprintf("Starting etcd service on \"%s\"", kubeNode.Hostname))
 		os.RunCommandOn("sudo mkdir -p /var/lib/etcd", kubeNode.IP, true)
 		etcdSvcCfg := string(etcdSvcCfgBytes)
@@ -621,7 +621,7 @@ func installEtcd() {
 	util.StartSpinner("Checking etcd service running well on master nodes")
 	time.Sleep(5 * time.Second)
 	var endpoints []string
-	for _, k := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+	for _, k := range nodes.GetMasterKubeNodes() {
 		endpoints = append(endpoints, fmt.Sprintf("https://%s:2379", k.IP))
 	}
 	allEtcdStarted := false
@@ -629,7 +629,7 @@ func installEtcd() {
 	for !allEtcdStarted && retry > 0 {
 		output := os.RunCommandOn(fmt.Sprintf("sudo etcdctl --endpoints=%s --cacert=%s --cert=%s --key=%s member list",
 			strings.Join(endpoints, ","), constant.EtcdCaCertPath, constant.EtcdClientCertPath,
-			constant.EtcdClientKeyPath), cfg.DeploymentCfg.Nodes[0].IP, true)
+			constant.EtcdClientKeyPath), nodes.Nodes[0].IP, true)
 		var notStarted []string
 		for _, line := range strings.Split(strings.TrimSuffix(output, "\n"), "\n") {
 			fields := strings.Split(line, ", ")
@@ -653,7 +653,7 @@ func installEtcd() {
 	util.StopSpinner("", logsymbols.Success)
 }
 
-func installHelm() {
+func installHelm(nodes model.KubeNodes) {
 	// download and distribute compressed helm file
 	var err error
 	helmUrl = cfg.DeploymentCfg.GetHelmExactUrl(HelmVersion)
@@ -662,7 +662,7 @@ func installHelm() {
 	var firstNode model.KubeNode
 	var helmFileExists bool
 	var skipInstallHelm []string
-	for i, kubeNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+	for i, kubeNode := range nodes.GetMasterKubeNodes() {
 		helmExists := os.CommandExists("helm")
 		if helmExists {
 			installedHelmVersion := os.RunCommand("helm version --short | cut -d+ -f1 | cut -dv -f2 | xargs", true)
@@ -712,7 +712,7 @@ func installHelm() {
 	}
 
 	// install helm
-	for _, kubeNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+	for _, kubeNode := range nodes.GetMasterKubeNodes() {
 		if slices.Contains(skipInstallHelm, kubeNode.IP.String()) {
 			continue
 		}
@@ -729,8 +729,8 @@ func installHelm() {
 	}
 }
 
-func installKeepAliveD() {
-	for _, masterNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+func installKeepAliveD(nodes model.KubeNodes) {
+	for _, masterNode := range nodes.GetMasterKubeNodes() {
 		os.RunCommandOn("sudo mkdir -p /etc/keepalived", masterNode.IP, true)
 		os.RunCommandOn("sudo chmod -R 777 /etc/keepalived", masterNode.IP, true)
 		os.InstallPackage("keepalived", masterNode.IP)
@@ -759,8 +759,8 @@ func installKeepAliveD() {
 	}
 }
 
-func initKubernetes() {
-	firstMasterNode := cfg.DeploymentCfg.GetMasterKubeNodes()[0]
+func initKubernetes(nodes model.KubeNodes) {
+	firstMasterNode := nodes.GetMasterKubeNodes()[0]
 	util.StartSpinner(fmt.Sprintf("Initializing kubernetes on \"%s\"", firstMasterNode.Hostname))
 	certKey := kube.CreateCertKey(KubeVersion, firstMasterNode.IP)
 	controlPlaneIP := firstMasterNode.IP
@@ -801,7 +801,7 @@ func initKubernetes() {
 		firstMasterNode.IP, true)
 	util.StopSpinner("", logsymbols.Success)
 
-	for _, workerNode := range cfg.DeploymentCfg.GetWorkerKubeNodes() {
+	for _, workerNode := range nodes.GetWorkerKubeNodes() {
 		os.RunCommandOn("mkdir -p $HOME/.kube", workerNode.IP, true)
 		err := os.TransferFile("$HOME/.kube/config", "$HOME/.kube/config", firstMasterNode.IP, workerNode.IP)
 		if err != nil {
@@ -814,12 +814,12 @@ func initKubernetes() {
 	}
 	kube.WaitUntilPodsRunningWithName(kubeSystemPodNames(firstMasterNode.Hostname), "kube-system")
 	joinAsMasterCmd := ""
-	if len(cfg.DeploymentCfg.GetMasterKubeNodes()) > 1 {
+	if len(nodes.GetMasterKubeNodes()) > 1 {
 		joinAsMasterCmd = os.RunCommandOn(
 			fmt.Sprintf("sudo kubeadm token create --print-join-command --certificate-key %s", certKey),
 			firstMasterNode.IP, true)
 	}
-	for _, masterNode := range cfg.DeploymentCfg.GetMasterKubeNodes() {
+	for _, masterNode := range nodes.GetMasterKubeNodes() {
 		if masterNode.IP.Equal(firstMasterNode.IP) {
 			continue
 		}
@@ -836,7 +836,7 @@ func initKubernetes() {
 		os.RunCommandOn("sudo chown $(id -u):$(id -g) $HOME/.kube/config", masterNode.IP, true)
 	}
 	var joinAsWorkerCmd string
-	for _, workerNode := range cfg.DeploymentCfg.GetWorkerKubeNodes() {
+	for _, workerNode := range nodes.GetWorkerKubeNodes() {
 		if joinAsWorkerCmd == "" {
 			joinAsWorkerCmd = os.RunCommandOn("sudo kubeadm token create --print-join-command",
 				firstMasterNode.IP, true)
@@ -853,7 +853,7 @@ func initKubernetes() {
 			firstMasterNode.IP, false)
 	}
 	time.Sleep(10 * time.Second)
-	for _, node := range cfg.DeploymentCfg.Nodes {
+	for _, node := range nodes.Nodes {
 		os.RunCommandOn("sudo systemctl restart containerd", node.IP, true)
 	}
 	time.Sleep(10 * time.Second)

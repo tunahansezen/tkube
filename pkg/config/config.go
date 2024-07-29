@@ -85,7 +85,7 @@ func askDeploymentConfig() (err error) {
 	addNode := true
 	index := 1
 	firstAsk := false
-	if len(DeploymentCfg.Nodes) == 0 {
+	if len(DeploymentCfg.GetKubeNodes()) == 0 {
 		firstAsk = true
 	}
 	for firstAsk && addNode {
@@ -122,9 +122,9 @@ func askDeploymentConfig() (err error) {
 	// todo check at least one master
 	// todo check --multi-master
 	if len(nodes) != 0 {
-		DeploymentCfg.Nodes = nodes
+		DeploymentCfg.SetKubeNodes(nodes)
 	}
-	for _, node := range DeploymentCfg.Nodes {
+	for _, node := range DeploymentCfg.GetKubeNodes() {
 		if node.SshUser != "" && node.SshPass != "" {
 			err = conn.WriteSSHData(node.IP.String(), node.SshUser, node.SshPass)
 			if err != nil {

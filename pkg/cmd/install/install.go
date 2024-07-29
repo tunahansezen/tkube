@@ -2,19 +2,18 @@ package install
 
 import (
 	"com.github.tunahansezen/tkube/pkg/cmd"
+	cfg "com.github.tunahansezen/tkube/pkg/config"
+	"com.github.tunahansezen/tkube/pkg/config/model"
 	"com.github.tunahansezen/tkube/pkg/core"
 	"github.com/spf13/cobra"
 )
 
 const (
-	fKubeVersion       = "kube-version"
-	fMultiMaster       = "multi-master"
-	DefaultMultiMaster = false
+	fSkipWorkers = "skip-workers"
 )
 
 var (
-	kubeVersion string
-	multiMaster bool
+	skipWorkers bool
 )
 
 // Cmd represents the purge command
@@ -26,12 +25,17 @@ var Cmd = &cobra.Command{
 		core.PreRun()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		core.MasterConfigs()
+		kubeNodes := cfg.DeploymentCfg.GetKubeNodes()
+		if skipWorkers {
+			kubeNodes = cfg.DeploymentCfg.GetMasterKubeNodes()
+		}
+		var nodes model.KubeNodes
+		nodes.Nodes = kubeNodes
+		core.Install(nodes)
 	},
 }
 
 func init() {
 	cmd.RootCmd.AddCommand(Cmd)
-	Cmd.Flags().StringVarP(&kubeVersion, fKubeVersion, "", "", "Kubernetes version")
-	Cmd.Flags().BoolVarP(&multiMaster, fMultiMaster, "", DefaultMultiMaster, "Multi-Master Kubernetes installation")
+	Cmd.Flags().BoolVarP(&skipWorkers, fSkipWorkers, "", false, "Skip worker nodes kubernetes installation")
 }
