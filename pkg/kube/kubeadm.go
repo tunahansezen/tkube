@@ -97,13 +97,13 @@ type ContextMapItem struct {
 	Value kubeApi.Context `json:"context,omitempty"`
 }
 
-func CreateCombinedKubeadmCfg(kubeVersion string, controlPlaneIP net.IP, certKey string,
+func CreateCombinedKubeadmCfg(kubeVersion string, controlPlaneIP net.IP, advertiseIP net.IP, certKey string,
 	dc model.DeploymentConfig, multiMasterDeployment bool) []byte {
 
 	var b bytes.Buffer
 	yamlEncoder := yamlv3.NewEncoder(&b)
 	yamlEncoder.SetIndent(2)
-	kubeadmInitCfg := createDefaultKubeadmInitCfg(kubeVersion, controlPlaneIP, certKey)
+	kubeadmInitCfg := createDefaultKubeadmInitCfg(kubeVersion, advertiseIP, certKey)
 	yamlEncoder.Encode(&kubeadmInitCfg)
 	b.WriteString("\n")
 	kubeadmClusterCfg := createKubeadmClusterCfg(kubeVersion, controlPlaneIP, dc, multiMasterDeployment)

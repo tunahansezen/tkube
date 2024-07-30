@@ -767,8 +767,9 @@ func initKubernetes(nodes model.KubeNodes) {
 	if cfg.DeploymentCfg.Keepalived.Enabled {
 		controlPlaneIP = cfg.DeploymentCfg.Keepalived.VirtualIP
 	}
-	os.CreateFile(kube.CreateCombinedKubeadmCfg(KubeVersion, controlPlaneIP, certKey, cfg.DeploymentCfg,
-		multiMasterDeployment), fmt.Sprintf("%s/kubeadm-config.yaml", path.GetTKubeCfgDir()), firstMasterNode.IP)
+	os.CreateFile(kube.CreateCombinedKubeadmCfg(KubeVersion, controlPlaneIP, firstMasterNode.IP, certKey,
+		cfg.DeploymentCfg, multiMasterDeployment),
+		fmt.Sprintf("%s/kubeadm-config.yaml", path.GetTKubeCfgDir()), firstMasterNode.IP)
 	util.StopSpinner("", logsymbols.Success)
 	os.RunCommandOn(fmt.Sprintf("sudo kubeadm init --config %s/kubeadm-config.yaml --upload-certs",
 		path.GetTKubeCfgDir()), firstMasterNode.IP, false)
@@ -824,7 +825,8 @@ func initKubernetes(nodes model.KubeNodes) {
 			continue
 		}
 		util.StartSpinner(fmt.Sprintf("Master node \"%s\" joining to cluster", masterNode.Hostname))
-		os.RunCommandOn(fmt.Sprintf("sudo %s", joinAsMasterCmd), masterNode.IP, true)
+		joinCmd := fmt.Sprintf("%s --apiserver-advertise-address=%s", joinAsMasterCmd, masterNode.IP)
+		os.RunCommandOn(fmt.Sprintf("sudo %s", joinCmd), masterNode.IP, true)
 		util.StopSpinner(fmt.Sprintf("Master node \"%s\" has joined to cluster", masterNode.Hostname),
 			logsymbols.Success)
 		kube.WaitUntilPodsRunningWithName(kubeSystemPodNames(masterNode.Hostname), "kube-system")
