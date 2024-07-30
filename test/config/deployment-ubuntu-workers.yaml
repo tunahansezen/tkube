@@ -24,6 +24,7 @@ nodes:
     sshUser: vagrant
     sshPass: vagrant
 packages:
+  - sshpass
   - apt-transport-https
   - ca-certificates
   - curl

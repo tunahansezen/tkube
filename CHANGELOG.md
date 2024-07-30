@@ -1,3 +1,10 @@
+## v1.3.0
+
+### Added or Changed
+- Skip workers deployment
+- Kubernetes advertise address fix
+- Add worker node command added
+
 ## v1.2.2
 
 ### Added or Changed

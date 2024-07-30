@@ -2,6 +2,7 @@ package main
 
 import (
 	"com.github.tunahansezen/tkube/pkg/cmd"
+	_ "com.github.tunahansezen/tkube/pkg/cmd/add"
 	_ "com.github.tunahansezen/tkube/pkg/cmd/install"
 	ostkube "com.github.tunahansezen/tkube/pkg/os"
 	"fmt"

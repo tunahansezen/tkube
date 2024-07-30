@@ -56,18 +56,18 @@ var (
 )
 
 func Install(nodes model.KubeNodes) {
-	switch len(nodes.GetMasterKubeNodes()) {
-	case 0:
-		os.Exit("No master pod configured", 1)
-	case 1:
-		fmt.Println("Single-master deployment started")
-		multiMasterDeployment = false
-	default:
-		fmt.Println("Multi-master deployment started")
-		multiMasterDeployment = true
+	if nodes.IncludeMaster() {
+		switch len(nodes.GetMasterKubeNodes()) {
+		case 1:
+			fmt.Println("Single-master deployment started")
+			multiMasterDeployment = false
+		default:
+			fmt.Println("Multi-master deployment started")
+			multiMasterDeployment = true
+		}
 	}
 	handleAuthMap()
-	addToEtcHosts(nodes)
+	addToEtcHosts(cfg.DeploymentCfg.GetKubeNodes())
 	if IsoPath != "" {
 		var firstMasterNode model.KubeNode
 		for i, node := range nodes.Nodes {
@@ -171,9 +171,9 @@ func handleAuthMap() {
 	}
 }
 
-func addToEtcHosts(nodes model.KubeNodes) {
-	for _, kubeNode := range nodes.Nodes {
-		for _, h := range nodes.Nodes {
+func addToEtcHosts(nodes []model.KubeNode) {
+	for _, kubeNode := range nodes {
+		for _, h := range nodes {
 			os.AppendLineOn(fmt.Sprintf("%s %s", h.IP, h.Hostname), "/etc/hosts", true, kubeNode.IP)
 		}
 	}
@@ -445,6 +445,9 @@ func installKubePackages(nodes model.KubeNodes, installationRequired map[string]
 }
 
 func generateAndDistributeKubeAndEtcdCerts(nodes model.KubeNodes) {
+	if !nodes.IncludeMaster() {
+		return
+	}
 	util.StartSpinner("Generating kube and etcd certs")
 	caCert, _, caKey, err := cfssl.New(model.DefaultKubernetesCSR())
 	if err != nil {
@@ -502,6 +505,9 @@ func createEtcdCerts(caCert []byte, caKey []byte) (cert, csrPEM, key []byte, err
 }
 
 func installEtcd(nodes model.KubeNodes) {
+	if !nodes.IncludeMaster() {
+		return
+	}
 	// download and distribute compressed etcd file
 	var err error
 	etcdUrl = cfg.DeploymentCfg.GetEtcdExactUrl(EtcdVersion)
@@ -654,6 +660,9 @@ func installEtcd(nodes model.KubeNodes) {
 }
 
 func installHelm(nodes model.KubeNodes) {
+	if !nodes.IncludeMaster() {
+		return
+	}
 	// download and distribute compressed helm file
 	var err error
 	helmUrl = cfg.DeploymentCfg.GetHelmExactUrl(HelmVersion)
@@ -760,47 +769,56 @@ func installKeepAliveD(nodes model.KubeNodes) {
 }
 
 func initKubernetes(nodes model.KubeNodes) {
-	firstMasterNode := nodes.GetMasterKubeNodes()[0]
-	util.StartSpinner(fmt.Sprintf("Initializing kubernetes on \"%s\"", firstMasterNode.Hostname))
-	certKey := kube.CreateCertKey(KubeVersion, firstMasterNode.IP)
-	controlPlaneIP := firstMasterNode.IP
-	if cfg.DeploymentCfg.Keepalived.Enabled {
-		controlPlaneIP = cfg.DeploymentCfg.Keepalived.VirtualIP
-	}
-	os.CreateFile(kube.CreateCombinedKubeadmCfg(KubeVersion, controlPlaneIP, firstMasterNode.IP, certKey,
-		cfg.DeploymentCfg, multiMasterDeployment),
-		fmt.Sprintf("%s/kubeadm-config.yaml", path.GetTKubeCfgDir()), firstMasterNode.IP)
-	util.StopSpinner("", logsymbols.Success)
-	os.RunCommandOn(fmt.Sprintf("sudo kubeadm init --config %s/kubeadm-config.yaml --upload-certs",
-		path.GetTKubeCfgDir()), firstMasterNode.IP, false)
-	os.RunCommandOn("mkdir -p $HOME/.kube", firstMasterNode.IP, true)
-	os.RunCommandOn("sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config", firstMasterNode.IP, true)
-	os.RunCommandOn("sudo chown $(id -u):$(id -g) $HOME/.kube/config", firstMasterNode.IP, true)
-	os.RunCommandOn("sudo mkdir -p /root/.kube", firstMasterNode.IP, true)
-	os.RunCommandOn("sudo cp /etc/kubernetes/admin.conf /root/.kube/config", firstMasterNode.IP, true)
-	os.RunCommandOn("sudo chown $(id -u):$(id -g) /root/.kube/config", firstMasterNode.IP, true)
-	util.StartSpinner(fmt.Sprintf("Applying calico config \"%s\" with version", getCalicoVersion()))
-	os.RunCommandOn(fmt.Sprintf("mkdir -p %s", path.GetTKubeTmpDir(firstMasterNode.IP)), firstMasterNode.IP, true)
-	var calicoUrl string
-	if IsoPath != "" {
-		calicoUrl = fmt.Sprintf("%s/calico/calico-%s.yaml", constant.IsoMountDir, CalicoVersion)
-	}
-	if strings.HasPrefix(calicoUrl, "/") { // check local file
-		os.RunCommandOn(fmt.Sprintf("mkdir -p %s && sudo cp %s %s/calico.yaml", path.GetTKubeTmpDir(firstMasterNode.IP),
-			calicoUrl, path.GetTKubeTmpDir(firstMasterNode.IP)), firstMasterNode.IP, true)
-	} else {
-		os.RunCommandOn(fmt.Sprintf("rm -f %s/calico.yaml && wget -nc -qO %s/calico.yaml %s --no-check-certificate",
-			path.GetTKubeTmpDir(firstMasterNode.IP), path.GetTKubeTmpDir(firstMasterNode.IP),
-			cfg.DeploymentCfg.GetCalicoExactUrl(getCalicoVersion())), firstMasterNode.IP, true)
-	}
-	if cfg.DeploymentCfg.Kubernetes.ImageRegistry != constant.DefaultKubeImageRegistry {
-		os.RunCommandOn(fmt.Sprintf("sed -i 's/docker.io/%s/' %s/calico.yaml",
-			cfg.DeploymentCfg.Kubernetes.ImageRegistry, path.GetTKubeTmpDir(firstMasterNode.IP)),
+	var firstMasterNode *model.KubeNode
+	var certKey string
+	if nodes.IncludeMaster() {
+		firstMasterNode = &nodes.GetMasterKubeNodes()[0]
+		util.StartSpinner(fmt.Sprintf("Initializing kubernetes on \"%s\"", firstMasterNode.Hostname))
+		certKey = kube.CreateCertKey(KubeVersion, firstMasterNode.IP)
+		controlPlaneIP := firstMasterNode.IP
+		if cfg.DeploymentCfg.Keepalived.Enabled {
+			controlPlaneIP = cfg.DeploymentCfg.Keepalived.VirtualIP
+		}
+		os.CreateFile(kube.CreateCombinedKubeadmCfg(KubeVersion, controlPlaneIP, firstMasterNode.IP, certKey,
+			cfg.DeploymentCfg, multiMasterDeployment),
+			fmt.Sprintf("%s/kubeadm-config.yaml", path.GetTKubeCfgDir()), firstMasterNode.IP)
+		util.StopSpinner("", logsymbols.Success)
+		os.RunCommandOn(fmt.Sprintf("sudo kubeadm init --config %s/kubeadm-config.yaml --upload-certs",
+			path.GetTKubeCfgDir()), firstMasterNode.IP, false)
+		os.RunCommandOn("mkdir -p $HOME/.kube", firstMasterNode.IP, true)
+		os.RunCommandOn("sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config", firstMasterNode.IP, true)
+		os.RunCommandOn("sudo chown $(id -u):$(id -g) $HOME/.kube/config", firstMasterNode.IP, true)
+		os.RunCommandOn("sudo mkdir -p /root/.kube", firstMasterNode.IP, true)
+		os.RunCommandOn("sudo cp /etc/kubernetes/admin.conf /root/.kube/config", firstMasterNode.IP, true)
+		os.RunCommandOn("sudo chown $(id -u):$(id -g) /root/.kube/config", firstMasterNode.IP, true)
+		util.StartSpinner(fmt.Sprintf("Applying calico config \"%s\" with version", getCalicoVersion()))
+		os.RunCommandOn(fmt.Sprintf("mkdir -p %s", path.GetTKubeTmpDir(firstMasterNode.IP)), firstMasterNode.IP, true)
+		var calicoUrl string
+		if IsoPath != "" {
+			calicoUrl = fmt.Sprintf("%s/calico/calico-%s.yaml", constant.IsoMountDir, CalicoVersion)
+		}
+		if strings.HasPrefix(calicoUrl, "/") { // check local file
+			os.RunCommandOn(fmt.Sprintf("mkdir -p %s && sudo cp %s %s/calico.yaml",
+				path.GetTKubeTmpDir(firstMasterNode.IP), calicoUrl,
+				path.GetTKubeTmpDir(firstMasterNode.IP)), firstMasterNode.IP, true)
+		} else {
+			os.RunCommandOn(fmt.Sprintf("rm -f %s/calico.yaml && wget -nc -qO %s/calico.yaml %s --no-check-certificate",
+				path.GetTKubeTmpDir(firstMasterNode.IP), path.GetTKubeTmpDir(firstMasterNode.IP),
+				cfg.DeploymentCfg.GetCalicoExactUrl(getCalicoVersion())), firstMasterNode.IP, true)
+		}
+		if cfg.DeploymentCfg.Kubernetes.ImageRegistry != constant.DefaultKubeImageRegistry {
+			os.RunCommandOn(fmt.Sprintf("sed -i 's/docker.io/%s/' %s/calico.yaml",
+				cfg.DeploymentCfg.Kubernetes.ImageRegistry, path.GetTKubeTmpDir(firstMasterNode.IP)),
+				firstMasterNode.IP, true)
+		}
+		os.RunCommandOn(fmt.Sprintf("kubectl apply -f %s/calico.yaml", path.GetTKubeTmpDir(firstMasterNode.IP)),
 			firstMasterNode.IP, true)
+		util.StopSpinner("", logsymbols.Success)
 	}
-	os.RunCommandOn(fmt.Sprintf("kubectl apply -f %s/calico.yaml", path.GetTKubeTmpDir(firstMasterNode.IP)),
-		firstMasterNode.IP, true)
-	util.StopSpinner("", logsymbols.Success)
+
+	if firstMasterNode == nil {
+		firstMasterNode = &cfg.DeploymentCfg.GetMasterKubeNodes()[0]
+	}
 
 	for _, workerNode := range nodes.GetWorkerKubeNodes() {
 		os.RunCommandOn("mkdir -p $HOME/.kube", workerNode.IP, true)
@@ -816,6 +834,11 @@ func initKubernetes(nodes model.KubeNodes) {
 	kube.WaitUntilPodsRunningWithName(kubeSystemPodNames(firstMasterNode.Hostname), "kube-system")
 	joinAsMasterCmd := ""
 	if len(nodes.GetMasterKubeNodes()) > 1 {
+		if certKey == "" {
+			certKey = os.RunCommandOn(
+				fmt.Sprintf("cat %s/kubeadm-config.yaml | grep certificateKey | awk -F ':' '{print $2}' | xargs",
+					path.GetTKubeCfgDir()), firstMasterNode.IP, true)
+		}
 		joinAsMasterCmd = os.RunCommandOn(
 			fmt.Sprintf("sudo kubeadm token create --print-join-command --certificate-key %s", certKey),
 			firstMasterNode.IP, true)

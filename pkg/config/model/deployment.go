@@ -129,6 +129,15 @@ func (dc DeploymentConfig) GetKubeNodes() []KubeNode {
 	return dc.Nodes
 }
 
+func (dc DeploymentConfig) GetNodeWithHostname(hostname string) *KubeNode {
+	for _, node := range dc.Nodes {
+		if node.Hostname == hostname {
+			return &node
+		}
+	}
+	return nil
+}
+
 func (dc DeploymentConfig) SetKubeNodes(nodes []KubeNode) {
 	dc.Nodes = nodes
 }
@@ -171,6 +180,15 @@ func (nodes KubeNodes) GetWorkerKubeNodes() []KubeNode {
 		}
 	}
 	return workerNodes
+}
+
+func (nodes KubeNodes) IncludeMaster() bool {
+	for _, node := range nodes.Nodes {
+		if node.KubeType == "master" {
+			return true
+		}
+	}
+	return false
 }
 
 func DefaultDockerDaemonCfg() DockerDaemonCfg {
