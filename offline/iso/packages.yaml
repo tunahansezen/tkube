@@ -16,6 +16,8 @@ common:
   - ipset
   - psmisc
   - ebtables
+commonSecondary:
+  - ntp
 centos:
   - yum-utils
   - yum-plugin-versionlock

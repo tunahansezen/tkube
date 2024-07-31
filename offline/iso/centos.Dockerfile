@@ -10,6 +10,7 @@ ARG DIR=${OS_NAME}-${OS_VERSION}-${TARGET_ARCH}-rpms
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 ARG PKGS=.common[],.$OS_NAME[]
+ARG SECONDARY_PKGS=.commonSecondary,.${OS_NAME}Secondary[]
 ARG MANDATORY_PACKAGES="tzdata ca-certificates curl wget gnupg2 yum-utils createrepo mkisofs epel-release"
 
 RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* \
@@ -22,6 +23,7 @@ COPY iso/packages.yaml .
 
 COPY --from=mikefarah/yq:4.44.1 /usr/bin/yq /usr/bin/yq
 RUN yq eval "${PKGS}" packages.yaml | xargs yum install -q -y
+RUN yq eval "${SECONDARY_PKGS}" packages.yaml | xargs yum install -q -y
 
 ARG DOCKER_VERSION=20.10.24
 ARG DOCKER_REPO_KEY="https://download.docker.com/linux/ubuntu/gpg"
