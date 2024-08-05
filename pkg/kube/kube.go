@@ -154,7 +154,7 @@ func WaitUntilPodsRunning(namespaces []string) {
 		msg = "Installation continues for %d pods"
 	}
 	util.StartSpinner(fmt.Sprintf(msg, notReadyCount))
-	for notReadyCount > 0 {
+	for notReadyCount != 0 {
 		time.Sleep(util.WaitSleep)
 		notReadyCount = notReadyPodCount(namespaces)
 		util.UpdateSpinner(fmt.Sprintf(msg, notReadyCount))
@@ -205,7 +205,10 @@ func notReadyPodCount(namespaces []string) int {
 		namespacesCmd = " | grep -v kube-system"
 	}
 	notReadyCount := 0
-	output := os.RunCommand(fmt.Sprintf("kubectl get pods --no-headers -A%s", namespacesCmd), true)
+	output, err := os.RunCommandReturnError(fmt.Sprintf("kubectl get pods --no-headers -A%s", namespacesCmd), true)
+	if err != nil {
+		return -1
+	}
 	for _, line := range strings.Split(strings.TrimSuffix(output, "\n"), "\n") {
 		s1 := strings.Fields(line)
 		if len(s1) < 3 {

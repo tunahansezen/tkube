@@ -50,6 +50,10 @@ func RunCommand(command string, silent bool) string {
 	return RunCommandOn(command, RemoteNode.IP, silent)
 }
 
+func RunCommandReturnError(command string, silent bool) (string, error) {
+	return runCommandOnReturnErr(command, RemoteNode.IP, silent, true)
+}
+
 func runCommandOnReturnErr(command string, ip net.IP, silent, returnErr bool) (string, error) {
 	var returnStr string
 	var err error

@@ -1,3 +1,9 @@
+## v1.3.1
+
+### Added or Changed
+- Single node deployment fixed
+- Ignore kubectl error for first runs
+
 ## v1.3.0
 
 ### Added or Changed

@@ -125,11 +125,11 @@ func DeploymentCfgViperDecodeHook() viper.DecoderConfigOption {
 	)
 }
 
-func (dc DeploymentConfig) GetKubeNodes() []KubeNode {
+func (dc *DeploymentConfig) GetKubeNodes() []KubeNode {
 	return dc.Nodes
 }
 
-func (dc DeploymentConfig) GetNodeWithHostname(hostname string) *KubeNode {
+func (dc *DeploymentConfig) GetNodeWithHostname(hostname string) *KubeNode {
 	for _, node := range dc.Nodes {
 		if node.Hostname == hostname {
 			return &node
@@ -138,11 +138,11 @@ func (dc DeploymentConfig) GetNodeWithHostname(hostname string) *KubeNode {
 	return nil
 }
 
-func (dc DeploymentConfig) SetKubeNodes(nodes []KubeNode) {
+func (dc *DeploymentConfig) SetKubeNodes(nodes []KubeNode) {
 	dc.Nodes = nodes
 }
 
-func (dc DeploymentConfig) GetMasterKubeNodeIPs() []net.IP {
+func (dc *DeploymentConfig) GetMasterKubeNodeIPs() []net.IP {
 	var masterNodeIPs []net.IP
 	for _, node := range dc.Nodes {
 		if node.KubeType == "master" {
@@ -152,7 +152,7 @@ func (dc DeploymentConfig) GetMasterKubeNodeIPs() []net.IP {
 	return masterNodeIPs
 }
 
-func (dc DeploymentConfig) GetMasterKubeNodes() []KubeNode {
+func (dc *DeploymentConfig) GetMasterKubeNodes() []KubeNode {
 	var nodes []KubeNode
 	for _, node := range dc.GetKubeNodes() {
 		if node.KubeType == "master" {
@@ -162,7 +162,7 @@ func (dc DeploymentConfig) GetMasterKubeNodes() []KubeNode {
 	return nodes
 }
 
-func (nodes KubeNodes) GetMasterKubeNodes() []KubeNode {
+func (nodes *KubeNodes) GetMasterKubeNodes() []KubeNode {
 	var masterNodes []KubeNode
 	for _, node := range nodes.Nodes {
 		if node.KubeType == "master" {
@@ -172,7 +172,7 @@ func (nodes KubeNodes) GetMasterKubeNodes() []KubeNode {
 	return masterNodes
 }
 
-func (nodes KubeNodes) GetWorkerKubeNodes() []KubeNode {
+func (nodes *KubeNodes) GetWorkerKubeNodes() []KubeNode {
 	var workerNodes []KubeNode
 	for _, node := range nodes.Nodes {
 		if node.KubeType == "worker" {
@@ -182,7 +182,7 @@ func (nodes KubeNodes) GetWorkerKubeNodes() []KubeNode {
 	return workerNodes
 }
 
-func (nodes KubeNodes) IncludeMaster() bool {
+func (nodes *KubeNodes) IncludeMaster() bool {
 	for _, node := range nodes.Nodes {
 		if node.KubeType == "master" {
 			return true
@@ -211,7 +211,7 @@ func (ddc DockerDaemonCfg) MarshallJson() []byte {
 	return append(bytes, []byte("\n")...)
 }
 
-func (dc DeploymentConfig) GetEtcdExactUrl(etcdVersion string) (exactUrl string) {
+func (dc *DeploymentConfig) GetEtcdExactUrl(etcdVersion string) (exactUrl string) {
 	if dc.Etcd.DownloadUrl == "default" {
 		url := "https://github.com/coreos/etcd/releases/download/v{version}/etcd-v{version}-linux-amd64.tar.gz"
 		return strings.ReplaceAll(url, "{version}", etcdVersion)
@@ -220,7 +220,7 @@ func (dc DeploymentConfig) GetEtcdExactUrl(etcdVersion string) (exactUrl string)
 	}
 }
 
-func (dc DeploymentConfig) GetHelmExactUrl(helmVersion string) (exactUrl string) {
+func (dc *DeploymentConfig) GetHelmExactUrl(helmVersion string) (exactUrl string) {
 	if dc.Helm.DownloadUrl == "default" {
 		url := "https://get.helm.sh/helm-v{version}-linux-amd64.tar.gz"
 		return strings.ReplaceAll(url, "{version}", helmVersion)
@@ -229,7 +229,7 @@ func (dc DeploymentConfig) GetHelmExactUrl(helmVersion string) (exactUrl string)
 	}
 }
 
-func (dc DeploymentConfig) GetCalicoExactUrl(calicoVersion string) (exactUrl string) {
+func (dc *DeploymentConfig) GetCalicoExactUrl(calicoVersion string) (exactUrl string) {
 	if dc.Kubernetes.Calico.Url == "default" {
 		var url string
 		calicoSemVer, _ := version.NewVersion(calicoVersion)
