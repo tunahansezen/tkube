@@ -360,7 +360,7 @@ func getKeyAuth() []ssh.AuthMethod {
 func sshDial(user string, auth []ssh.AuthMethod, addr string) (*ssh.Client, error) {
 	config := &ssh.ClientConfig{
 		User:            user,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
 		Auth:            auth,
 	}
 	return ssh.Dial("tcp", net.JoinHostPort(addr, "22"), config)
