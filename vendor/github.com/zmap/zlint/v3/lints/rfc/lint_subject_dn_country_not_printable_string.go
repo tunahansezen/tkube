@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,8 +15,7 @@ package rfc
  */
 
 import (
-	"encoding/asn1"
-
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -25,18 +24,20 @@ import (
 type SubjectDNCountryNotPrintableString struct{}
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_subject_dn_country_not_printable_string",
-		Description:   "X520 Distinguished Name Country MUST be encoded as PrintableString",
-		Citation:      "RFC 5280: Appendix A",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.ZeroDate,
-		Lint:          &SubjectDNCountryNotPrintableString{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_subject_dn_country_not_printable_string",
+			Description:   "X520 Distinguished Name Country MUST be encoded as PrintableString",
+			Citation:      "RFC 5280: Appendix A",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.ZeroDate,
+		},
+		Lint: NewSubjectDNCountryNotPrintableString,
 	})
 }
 
-func (l *SubjectDNCountryNotPrintableString) Initialize() error {
-	return nil
+func NewSubjectDNCountryNotPrintableString() lint.LintInterface {
+	return &SubjectDNCountryNotPrintableString{}
 }
 
 func (l *SubjectDNCountryNotPrintableString) CheckApplies(c *x509.Certificate) bool {

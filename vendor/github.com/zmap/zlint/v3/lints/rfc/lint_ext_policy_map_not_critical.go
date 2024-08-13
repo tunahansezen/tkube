@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -29,18 +29,20 @@ This extension MAY be supported by CAs and/or applications.
 **********************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "w_ext_policy_map_not_critical",
-		Description:   "Policy mappings should be marked as critical",
-		Citation:      "RFC 5280: 4.2.1.5",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC2459Date,
-		Lint:          &policyMapCritical{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "w_ext_policy_map_not_critical",
+			Description:   "Policy mappings should be marked as critical",
+			Citation:      "RFC 5280: 4.2.1.5",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC2459Date,
+		},
+		Lint: NewPolicyMapCritical,
 	})
 }
 
-func (l *policyMapCritical) Initialize() error {
-	return nil
+func NewPolicyMapCritical() lint.LintInterface {
+	return &policyMapCritical{}
 }
 
 func (l *policyMapCritical) CheckApplies(c *x509.Certificate) bool {

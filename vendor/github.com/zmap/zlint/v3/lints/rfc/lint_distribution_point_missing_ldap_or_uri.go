@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -30,18 +30,20 @@ When present, DistributionPointName SHOULD include at least one LDAP or HTTP URI
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "w_distribution_point_missing_ldap_or_uri",
-		Description:   "When present in the CRLDistributionPoints extension, DistributionPointName SHOULD include at least one LDAP or HTTP URI",
-		Citation:      "RFC 5280: 4.2.1.13",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC5280Date,
-		Lint:          &distribNoLDAPorURI{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "w_distribution_point_missing_ldap_or_uri",
+			Description:   "When present in the CRLDistributionPoints extension, DistributionPointName SHOULD include at least one LDAP or HTTP URI",
+			Citation:      "RFC 5280: 4.2.1.13",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC5280Date,
+		},
+		Lint: NewDistribNoLDAPorURI,
 	})
 }
 
-func (l *distribNoLDAPorURI) Initialize() error {
-	return nil
+func NewDistribNoLDAPorURI() lint.LintInterface {
+	return &distribNoLDAPorURI{}
 }
 
 func (l *distribNoLDAPorURI) CheckApplies(c *x509.Certificate) bool {

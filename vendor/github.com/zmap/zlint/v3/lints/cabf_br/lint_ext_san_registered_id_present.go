@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -34,18 +34,20 @@ Wildcard FQDNs are permitted.
 *************************************************************************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ext_san_registered_id_present",
-		Description:   "The Subject Alternate Name extension MUST contain only 'dnsName' and 'ipaddress' name types.",
-		Citation:      "BRs: 7.1.4.2.1",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &SANRegId{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ext_san_registered_id_present",
+			Description:   "The Subject Alternate Name extension MUST contain only 'dnsName' and 'ipaddress' name types.",
+			Citation:      "BRs: 7.1.4.2.1",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABEffectiveDate,
+		},
+		Lint: NewSANRegId,
 	})
 }
 
-func (l *SANRegId) Initialize() error {
-	return nil
+func NewSANRegId() lint.LintInterface {
+	return &SANRegId{}
 }
 
 func (l *SANRegId) CheckApplies(c *x509.Certificate) bool {

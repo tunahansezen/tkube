@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -39,18 +39,20 @@ When the subjectAltName extension contains a domain name system
 ************************************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ext_san_space_dns_name",
-		Description:   "The dNSName ` ` MUST NOT be used",
-		Citation:      "RFC 5280: 4.2.1.6",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC2459Date,
-		Lint:          &SANIsSpaceDNS{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ext_san_space_dns_name",
+			Description:   "The dNSName ` ` MUST NOT be used",
+			Citation:      "RFC 5280: 4.2.1.6",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC2459Date,
+		},
+		Lint: NewSANIsSpaceDNS,
 	})
 }
 
-func (l *SANIsSpaceDNS) Initialize() error {
-	return nil
+func NewSANIsSpaceDNS() lint.LintInterface {
+	return &SANIsSpaceDNS{}
 }
 
 func (l *SANIsSpaceDNS) CheckApplies(c *x509.Certificate) bool {

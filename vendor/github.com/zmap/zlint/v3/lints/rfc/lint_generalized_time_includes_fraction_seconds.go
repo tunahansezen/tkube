@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,8 +15,7 @@ package rfc
  */
 
 import (
-	"encoding/asn1"
-
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -39,18 +38,20 @@ is zero.  GeneralizedTime values MUST NOT include fractional seconds.
 ********************************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_generalized_time_includes_fraction_seconds",
-		Description:   "Generalized time values MUST NOT include fractional seconds",
-		Citation:      "RFC 5280: 4.1.2.5.2",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC2459Date,
-		Lint:          &generalizedTimeFraction{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_generalized_time_includes_fraction_seconds",
+			Description:   "Generalized time values MUST NOT include fractional seconds",
+			Citation:      "RFC 5280: 4.1.2.5.2",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC2459Date,
+		},
+		Lint: NewGeneralizedTimeFraction,
 	})
 }
 
-func (l *generalizedTimeFraction) Initialize() error {
-	return nil
+func NewGeneralizedTimeFraction() lint.LintInterface {
+	return &generalizedTimeFraction{}
 }
 
 func (l *generalizedTimeFraction) CheckApplies(c *x509.Certificate) bool {

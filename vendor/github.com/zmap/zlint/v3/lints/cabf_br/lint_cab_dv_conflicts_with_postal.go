@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -33,18 +33,20 @@ field.
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_cab_dv_conflicts_with_postal",
-		Description:   "If certificate policy 2.23.140.1.2.1 (CA/B BR domain validated) is included, postalCode MUST NOT be included in subject",
-		Citation:      "BRs: 7.1.6.4",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &certPolicyConflictsWithPostal{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_cab_dv_conflicts_with_postal",
+			Description:   "If certificate policy 2.23.140.1.2.1 (CA/B BR domain validated) is included, postalCode MUST NOT be included in subject",
+			Citation:      "BRs: 7.1.6.4",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABEffectiveDate,
+		},
+		Lint: NewCertPolicyConflictsWithPostal,
 	})
 }
 
-func (l *certPolicyConflictsWithPostal) Initialize() error {
-	return nil
+func NewCertPolicyConflictsWithPostal() lint.LintInterface {
+	return &certPolicyConflictsWithPostal{}
 }
 
 func (l *certPolicyConflictsWithPostal) CheckApplies(cert *x509.Certificate) bool {

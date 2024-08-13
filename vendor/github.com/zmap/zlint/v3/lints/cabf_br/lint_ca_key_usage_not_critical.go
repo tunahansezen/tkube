@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -29,18 +29,20 @@ If the Root CA Private Key is used for signing OCSP responses, then the digitalS
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ca_key_usage_not_critical",
-		Description:   "Root and Subordinate CA certificate keyUsage extension MUST be marked as critical",
-		Citation:      "BRs: 7.1.2.1",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &caKeyUsageNotCrit{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ca_key_usage_not_critical",
+			Description:   "Root and Subordinate CA certificate keyUsage extension MUST be marked as critical",
+			Citation:      "BRs: 7.1.2.1",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABEffectiveDate,
+		},
+		Lint: NewCaKeyUsageNotCrit,
 	})
 }
 
-func (l *caKeyUsageNotCrit) Initialize() error {
-	return nil
+func NewCaKeyUsageNotCrit() lint.LintInterface {
+	return &caKeyUsageNotCrit{}
 }
 
 func (l *caKeyUsageNotCrit) CheckApplies(c *x509.Certificate) bool {

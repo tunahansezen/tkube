@@ -1,7 +1,7 @@
 package community
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -23,18 +23,20 @@ import (
 type brIANWildcardFirst struct{}
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ian_wildcard_not_first",
-		Description:   "A wildcard MUST be in the first label of FQDN (ie not: www.*.com) (Only checks IANDNSNames)",
-		Citation:      "awslabs certlint",
-		Source:        lint.Community,
-		EffectiveDate: util.ZeroDate,
-		Lint:          &brIANWildcardFirst{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ian_wildcard_not_first",
+			Description:   "A wildcard MUST be in the first label of FQDN (ie not: www.*.com) (Only checks IANDNSNames)",
+			Citation:      "awslabs certlint",
+			Source:        lint.Community,
+			EffectiveDate: util.ZeroDate,
+		},
+		Lint: NewBrIANWildcardFirst,
 	})
 }
 
-func (l *brIANWildcardFirst) Initialize() error {
-	return nil
+func NewBrIANWildcardFirst() lint.LintInterface {
+	return &brIANWildcardFirst{}
 }
 
 func (l *brIANWildcardFirst) CheckApplies(c *x509.Certificate) bool {

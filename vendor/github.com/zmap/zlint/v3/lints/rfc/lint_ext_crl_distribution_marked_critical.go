@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -27,18 +27,20 @@ The CRL distribution points extension identifies how CRL information is obtained
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "w_ext_crl_distribution_marked_critical",
-		Description:   "If included, the CRL Distribution Points extension SHOULD NOT be marked critical",
-		Citation:      "RFC 5280: 4.2.1.13",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC2459Date,
-		Lint:          &ExtCrlDistributionMarkedCritical{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "w_ext_crl_distribution_marked_critical",
+			Description:   "If included, the CRL Distribution Points extension SHOULD NOT be marked critical",
+			Citation:      "RFC 5280: 4.2.1.13",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC2459Date,
+		},
+		Lint: NewExtCrlDistributionMarkedCritical,
 	})
 }
 
-func (l *ExtCrlDistributionMarkedCritical) Initialize() error {
-	return nil
+func NewExtCrlDistributionMarkedCritical() lint.LintInterface {
+	return &ExtCrlDistributionMarkedCritical{}
 }
 
 func (l *ExtCrlDistributionMarkedCritical) CheckApplies(cert *x509.Certificate) bool {

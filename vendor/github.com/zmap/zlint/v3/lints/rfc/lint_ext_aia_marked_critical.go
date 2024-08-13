@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -29,18 +29,20 @@ Authority Information Access
 //See also: BRs: 7.1.2.3 & CAB: 7.1.2.2
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ext_aia_marked_critical",
-		Description:   "Conforming CAs must mark the Authority Information Access extension as non-critical",
-		Citation:      "RFC 5280: 4.2.2.1",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC2459Date,
-		Lint:          &ExtAiaMarkedCritical{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ext_aia_marked_critical",
+			Description:   "Conforming CAs must mark the Authority Information Access extension as non-critical",
+			Citation:      "RFC 5280: 4.2.2.1",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC2459Date,
+		},
+		Lint: NewExtAiaMarkedCritical,
 	})
 }
 
-func (l *ExtAiaMarkedCritical) Initialize() error {
-	return nil
+func NewExtAiaMarkedCritical() lint.LintInterface {
+	return &ExtAiaMarkedCritical{}
 }
 
 func (l *ExtAiaMarkedCritical) CheckApplies(cert *x509.Certificate) bool {

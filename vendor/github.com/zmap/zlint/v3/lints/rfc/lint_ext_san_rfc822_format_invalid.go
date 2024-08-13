@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -37,18 +37,20 @@ RFC 5280: 4.2.1.6
 ************************************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ext_san_rfc822_format_invalid",
-		Description:   "Email MUST NOT be surrounded with `<>`, and there must be no trailing comments in `()`",
-		Citation:      "RFC 5280: 4.2.1.6",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC2459Date,
-		Lint:          &invalidEmail{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ext_san_rfc822_format_invalid",
+			Description:   "Email MUST NOT be surrounded with `<>`, and there must be no trailing comments in `()`",
+			Citation:      "RFC 5280: 4.2.1.6",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC2459Date,
+		},
+		Lint: NewInvalidEmail,
 	})
 }
 
-func (l *invalidEmail) Initialize() error {
-	return nil
+func NewInvalidEmail() lint.LintInterface {
+	return &invalidEmail{}
 }
 
 func (l *invalidEmail) CheckApplies(c *x509.Certificate) bool {

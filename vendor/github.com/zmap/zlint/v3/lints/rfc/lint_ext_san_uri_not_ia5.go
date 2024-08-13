@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -30,18 +30,20 @@ stored in the uniformResourceIdentifier (an IA5String).
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ext_san_uri_not_ia5",
-		Description:   "When subjectAlternateName contains a URI, the name MUST be an IA5 string",
-		Citation:      "RFC5280: 4.2.1.6",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC5280Date,
-		Lint:          &extSANURINotIA5{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ext_san_uri_not_ia5",
+			Description:   "When subjectAlternateName contains a URI, the name MUST be an IA5 string",
+			Citation:      "RFC5280: 4.2.1.6",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC5280Date,
+		},
+		Lint: NewExtSANURINotIA5,
 	})
 }
 
-func (l *extSANURINotIA5) Initialize() error {
-	return nil
+func NewExtSANURINotIA5() lint.LintInterface {
+	return &extSANURINotIA5{}
 }
 
 func (l *extSANURINotIA5) CheckApplies(c *x509.Certificate) bool {

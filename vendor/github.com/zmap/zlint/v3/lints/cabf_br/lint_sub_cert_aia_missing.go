@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -32,18 +32,20 @@ marked critical, and it MUST contain the HTTP URL of the Issuing CA’s OCSP res
 ***************************************************************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_sub_cert_aia_missing",
-		Description:   "Subscriber Certificate: authorityInformationAccess MUST be present.",
-		Citation:      "BRs: 7.1.2.3",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &subCertAiaMissing{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_sub_cert_aia_missing",
+			Description:   "Subscriber Certificate: authorityInformationAccess MUST be present.",
+			Citation:      "BRs: 7.1.2.3",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABEffectiveDate,
+		},
+		Lint: NewSubCertAiaMissing,
 	})
 }
 
-func (l *subCertAiaMissing) Initialize() error {
-	return nil
+func NewSubCertAiaMissing() lint.LintInterface {
+	return &subCertAiaMissing{}
 }
 
 func (l *subCertAiaMissing) CheckApplies(c *x509.Certificate) bool {

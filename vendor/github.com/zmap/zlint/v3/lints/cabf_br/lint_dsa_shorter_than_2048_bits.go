@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,7 +15,7 @@ package cabf_br
  */
 
 import (
-	"crypto/dsa"
+	"github.com/zmap/zcrypto/dsa"
 
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
@@ -25,19 +25,22 @@ import (
 type dsaTooShort struct{}
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:        "e_dsa_shorter_than_2048_bits",
-		Description: "DSA modulus size must be at least 2048 bits",
-		Citation:    "BRs v1.7.0: 6.1.5",
-		// Refer to BRs: 6.1.5, taking the statement "Before 31 Dec 2010" literally
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.ZeroDate,
-		Lint:          &dsaTooShort{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:        "e_dsa_shorter_than_2048_bits",
+			Description: "DSA modulus size must be at least 2048 bits",
+			Citation:    "BRs v1.7.0: 6.1.5",
+			// Refer to BRs: 6.1.5, taking the statement "Before 31 Dec 2010" literally
+			Source:          lint.CABFBaselineRequirements,
+			EffectiveDate:   util.ZeroDate,
+			IneffectiveDate: util.CABFBRs_1_7_1_Date,
+		},
+		Lint: NewDsaTooShort,
 	})
 }
 
-func (l *dsaTooShort) Initialize() error {
-	return nil
+func NewDsaTooShort() lint.LintInterface {
+	return &dsaTooShort{}
 }
 
 func (l *dsaTooShort) CheckApplies(c *x509.Certificate) bool {

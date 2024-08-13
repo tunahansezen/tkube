@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,8 +15,7 @@ package rfc
  */
 
 import (
-	"encoding/asn1"
-
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -25,18 +24,20 @@ import (
 type SubjectDNSerialNumberNotPrintableString struct{}
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_subject_dn_serial_number_not_printable_string",
-		Description:   "X520 Distinguished Name SerialNumber MUST be encoded as PrintableString",
-		Citation:      "RFC 5280: Appendix A",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.ZeroDate,
-		Lint:          &SubjectDNSerialNumberNotPrintableString{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_subject_dn_serial_number_not_printable_string",
+			Description:   "X520 Distinguished Name SerialNumber MUST be encoded as PrintableString",
+			Citation:      "RFC 5280: Appendix A",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.ZeroDate,
+		},
+		Lint: NewSubjectDNSerialNumberNotPrintableString,
 	})
 }
 
-func (l *SubjectDNSerialNumberNotPrintableString) Initialize() error {
-	return nil
+func NewSubjectDNSerialNumberNotPrintableString() lint.LintInterface {
+	return &SubjectDNSerialNumberNotPrintableString{}
 }
 
 func (l *SubjectDNSerialNumberNotPrintableString) CheckApplies(c *x509.Certificate) bool {

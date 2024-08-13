@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -16,13 +16,26 @@ package PACKAGE
 
 import (
 	"github.com/zmap/zcrypto/x509"
-	"github.com/zmap/zlint/v2/lint"
+	"github.com/zmap/zlint/v3/lint"
 )
+
+func init() {
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "SUBTEST",
+			Description:   "Fill this in...",
+			Citation:      "Fill this in...",
+			Source:        UnknownLintSource,
+			EffectiveDate: "Change this...",
+		},
+		Lint: NewPASCAL_CASE_SUBST,
+	})
+}
 
 type SUBST struct{}
 
-func (l *SUBST) Initialize() error {
-	return nil
+func NewPASCAL_CASE_SUBST() lint.LintInterface {
+    return &SUBST{}
 }
 
 func (l *SUBST) CheckApplies(c *x509.Certificate) bool {
@@ -31,15 +44,4 @@ func (l *SUBST) CheckApplies(c *x509.Certificate) bool {
 
 func (l *SUBST) Execute(c *x509.Certificate) *lint.LintResult {
 	// Add actual lint here
-}
-
-func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "SUBTEST",
-		Description:   "Fill this in...",
-		Citation:      "Fill this in...",
-		Source:        UnknownLintSource,
-		EffectiveDate: "Change this...",
-		Lint:          &SUBST{},
-	})
 }

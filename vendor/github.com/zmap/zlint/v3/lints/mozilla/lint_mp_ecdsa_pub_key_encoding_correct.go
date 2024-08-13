@@ -1,7 +1,7 @@
 package mozilla
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -44,14 +44,20 @@ curve OID. Certificates MUST NOT use the implicit or specified curve forms.
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_mp_ecdsa_pub_key_encoding_correct",
-		Description:   "The encoded algorithm identifiers for ECDSA public keys MUST match specific bytes",
-		Citation:      "Mozilla Root Store Policy / Section 5.1.2",
-		Source:        lint.MozillaRootStorePolicy,
-		EffectiveDate: util.MozillaPolicy27Date,
-		Lint:          &ecdsaPubKeyAidEncoding{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_mp_ecdsa_pub_key_encoding_correct",
+			Description:   "The encoded algorithm identifiers for ECDSA public keys MUST match specific bytes",
+			Citation:      "Mozilla Root Store Policy / Section 5.1.2",
+			Source:        lint.MozillaRootStorePolicy,
+			EffectiveDate: util.MozillaPolicy27Date,
+		},
+		Lint: NewEcdsaPubKeyAidEncoding,
 	})
+}
+
+func NewEcdsaPubKeyAidEncoding() lint.LintInterface {
+	return &ecdsaPubKeyAidEncoding{}
 }
 
 var acceptedAlgIDEncodingsDER = [2][]byte{
@@ -59,10 +65,6 @@ var acceptedAlgIDEncodingsDER = [2][]byte{
 	{0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07},
 	// encoded AlgorithmIdentifier for a P-384 key
 	{0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22},
-}
-
-func (l *ecdsaPubKeyAidEncoding) Initialize() error {
-	return nil
 }
 
 func (l *ecdsaPubKeyAidEncoding) CheckApplies(c *x509.Certificate) bool {

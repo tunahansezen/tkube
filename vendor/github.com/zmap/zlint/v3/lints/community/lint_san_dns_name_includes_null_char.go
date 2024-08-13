@@ -1,7 +1,7 @@
 package community
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -23,18 +23,20 @@ import (
 type SANDNSNull struct{}
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_san_dns_name_includes_null_char",
-		Description:   "DNSName MUST NOT include a null character",
-		Citation:      "awslabs certlint",
-		Source:        lint.Community,
-		EffectiveDate: util.ZeroDate,
-		Lint:          &SANDNSNull{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_san_dns_name_includes_null_char",
+			Description:   "DNSName MUST NOT include a null character",
+			Citation:      "awslabs certlint",
+			Source:        lint.Community,
+			EffectiveDate: util.ZeroDate,
+		},
+		Lint: NewSANDNSNull,
 	})
 }
 
-func (l *SANDNSNull) Initialize() error {
-	return nil
+func NewSANDNSNull() lint.LintInterface {
+	return &SANDNSNull{}
 }
 
 func (l *SANDNSNull) CheckApplies(c *x509.Certificate) bool {

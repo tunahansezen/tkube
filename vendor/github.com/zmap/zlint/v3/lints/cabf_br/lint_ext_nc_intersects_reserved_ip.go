@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -34,18 +34,20 @@ Subject commonName field containing a Reserved IP Address or Internal Name.
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ext_nc_intersects_reserved_ip",
-		Description:   "iPAddress name constraint intersects an IANA reserved network",
-		Citation:      "BRs: 7.1.5 / 7.1.4.2.1",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &NCReservedIPNet{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ext_nc_intersects_reserved_ip",
+			Description:   "iPAddress name constraint intersects an IANA reserved network",
+			Citation:      "BRs: 7.1.5 / 7.1.4.2.1",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABEffectiveDate,
+		},
+		Lint: NewNCReservedIPNet,
 	})
 }
 
-func (l *NCReservedIPNet) Initialize() error {
-	return nil
+func NewNCReservedIPNet() lint.LintInterface {
+	return &NCReservedIPNet{}
 }
 
 func (l *NCReservedIPNet) CheckApplies(c *x509.Certificate) bool {

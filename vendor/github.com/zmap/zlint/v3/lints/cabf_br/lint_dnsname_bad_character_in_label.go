@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -27,22 +27,22 @@ type DNSNameProperCharacters struct {
 }
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_dnsname_bad_character_in_label",
-		Description:   "Characters in labels of DNSNames MUST be alphanumeric, - , _ or *",
-		Citation:      "BRs: 7.1.4.2",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &DNSNameProperCharacters{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_dnsname_bad_character_in_label",
+			Description:   "Characters in labels of DNSNames MUST be alphanumeric, - , _ or *",
+			Citation:      "BRs: 7.1.4.2",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABEffectiveDate,
+		},
+		Lint: NewDNSNameProperCharacters,
 	})
 }
 
-func (l *DNSNameProperCharacters) Initialize() error {
-	const dnsNameRegexp = `^(\*\.)?(\?\.)*([A-Za-z0-9*_-]+\.)*[A-Za-z0-9*_-]*$`
-	var err error
-	l.CompiledExpression, err = regexp.Compile(dnsNameRegexp)
-
-	return err
+func NewDNSNameProperCharacters() lint.LintInterface {
+	return &DNSNameProperCharacters{
+		CompiledExpression: regexp.MustCompile(`^(\*\.)?(\?\.)*([A-Za-z0-9*_-]+\.)*[A-Za-z0-9*_-]*$`),
+	}
 }
 
 func (l *DNSNameProperCharacters) CheckApplies(c *x509.Certificate) bool {

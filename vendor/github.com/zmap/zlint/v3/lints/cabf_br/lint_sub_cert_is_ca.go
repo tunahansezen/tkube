@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,8 +15,7 @@ package cabf_br
  */
 
 import (
-	"encoding/asn1"
-
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -25,18 +24,20 @@ import (
 type subCertNotCA struct{}
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_sub_cert_not_is_ca",
-		Description:   "Subscriber Certificate: basicContrainsts cA field MUST NOT be true.",
-		Citation:      "BRs: 7.1.2.3",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &subCertNotCA{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_sub_cert_not_is_ca",
+			Description:   "Subscriber Certificate: basicContrainsts cA field MUST NOT be true.",
+			Citation:      "BRs: 7.1.2.3",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABEffectiveDate,
+		},
+		Lint: NewSubCertNotCA,
 	})
 }
 
-func (l *subCertNotCA) Initialize() error {
-	return nil
+func NewSubCertNotCA() lint.LintInterface {
+	return &subCertNotCA{}
 }
 
 func (l *subCertNotCA) CheckApplies(c *x509.Certificate) bool {

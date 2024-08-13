@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -25,18 +25,20 @@ import (
 type rootCaModSize struct{}
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_old_root_ca_rsa_mod_less_than_2048_bits",
-		Description:   "In a validity period beginning on or before 31 Dec 2010, root CA certificates using RSA public key algorithm MUST use a 2048 bit modulus",
-		Citation:      "BRs: 6.1.5",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.ZeroDate,
-		Lint:          &rootCaModSize{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_old_root_ca_rsa_mod_less_than_2048_bits",
+			Description:   "In a validity period beginning on or before 31 Dec 2010, root CA certificates using RSA public key algorithm MUST use a 2048 bit modulus",
+			Citation:      "BRs: 6.1.5",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.ZeroDate,
+		},
+		Lint: NewRootCaModSize,
 	})
 }
 
-func (l *rootCaModSize) Initialize() error {
-	return nil
+func NewRootCaModSize() lint.LintInterface {
+	return &rootCaModSize{}
 }
 
 func (l *rootCaModSize) CheckApplies(c *x509.Certificate) bool {

@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,8 +15,7 @@ package rfc
  */
 
 import (
-	"encoding/asn1"
-
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -34,18 +33,20 @@ Conforming CAs MUST NOT issue certificates where policy constraints
 *************************************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ext_policy_constraints_empty",
-		Description:   "Conforming CAs MUST NOT issue certificates where policy constraints is an empty sequence. That is, either the inhibitPolicyMapping field or the requireExplicityPolicy field MUST be present",
-		Citation:      "RFC 5280: 4.2.1.11",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC2459Date,
-		Lint:          &policyConstraintsContents{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ext_policy_constraints_empty",
+			Description:   "Conforming CAs MUST NOT issue certificates where policy constraints is an empty sequence. That is, either the inhibitPolicyMapping field or the requireExplicityPolicy field MUST be present",
+			Citation:      "RFC 5280: 4.2.1.11",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC2459Date,
+		},
+		Lint: NewPolicyConstraintsContents,
 	})
 }
 
-func (l *policyConstraintsContents) Initialize() error {
-	return nil
+func NewPolicyConstraintsContents() lint.LintInterface {
+	return &policyConstraintsContents{}
 }
 
 func (l *policyConstraintsContents) CheckApplies(c *x509.Certificate) bool {

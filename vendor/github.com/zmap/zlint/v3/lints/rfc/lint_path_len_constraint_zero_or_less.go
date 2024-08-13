@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,8 +15,7 @@ package rfc
  */
 
 import (
-	"encoding/asn1"
-
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -47,18 +46,20 @@ not appear, no limit is imposed.
 ********************************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_path_len_constraint_zero_or_less",
-		Description:   "Where it appears, the pathLenConstraint field MUST be greater than or equal to zero",
-		Citation:      "RFC 5280: 4.2.1.9",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC2459Date,
-		Lint:          &pathLenNonPositive{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_path_len_constraint_zero_or_less",
+			Description:   "Where it appears, the pathLenConstraint field MUST be greater than or equal to zero",
+			Citation:      "RFC 5280: 4.2.1.9",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC2459Date,
+		},
+		Lint: NewPathLenNonPositive,
 	})
 }
 
-func (l *pathLenNonPositive) Initialize() error {
-	return nil
+func NewPathLenNonPositive() lint.LintInterface {
+	return &pathLenNonPositive{}
 }
 
 func (l *pathLenNonPositive) CheckApplies(cert *x509.Certificate) bool {

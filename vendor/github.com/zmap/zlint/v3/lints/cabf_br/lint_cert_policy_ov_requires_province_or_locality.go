@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -35,18 +35,20 @@ Note: 7.1.4.2.2 applies only to subscriber certificates.
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_cert_policy_ov_requires_province_or_locality",
-		Description:   "If certificate policy 2.23.140.1.2.2 is included, localityName or stateOrProvinceName MUST be included in subject",
-		Citation:      "BRs: 7.1.6.4",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &CertPolicyOVRequiresProvinceOrLocal{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_cert_policy_ov_requires_province_or_locality",
+			Description:   "If certificate policy 2.23.140.1.2.2 is included, localityName or stateOrProvinceName MUST be included in subject",
+			Citation:      "BRs: 7.1.6.4",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABEffectiveDate,
+		},
+		Lint: NewCertPolicyOVRequiresProvinceOrLocal,
 	})
 }
 
-func (l *CertPolicyOVRequiresProvinceOrLocal) Initialize() error {
-	return nil
+func NewCertPolicyOVRequiresProvinceOrLocal() lint.LintInterface {
+	return &CertPolicyOVRequiresProvinceOrLocal{}
 }
 
 func (l *CertPolicyOVRequiresProvinceOrLocal) CheckApplies(cert *x509.Certificate) bool {

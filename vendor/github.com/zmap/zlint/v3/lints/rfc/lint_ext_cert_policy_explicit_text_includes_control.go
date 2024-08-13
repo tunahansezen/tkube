@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -35,18 +35,20 @@ normalized according to Unicode normalization form C (NFC) [NFC].
 *********************************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "w_ext_cert_policy_explicit_text_includes_control",
-		Description:   "Explicit text should not include any control characters",
-		Citation:      "RFC 6818: 3",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC6818Date,
-		Lint:          &controlChar{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "w_ext_cert_policy_explicit_text_includes_control",
+			Description:   "Explicit text should not include any control characters",
+			Citation:      "RFC 6818: 3",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC6818Date,
+		},
+		Lint: NewControlChar,
 	})
 }
 
-func (l *controlChar) Initialize() error {
-	return nil
+func NewControlChar() lint.LintInterface {
+	return &controlChar{}
 }
 
 func (l *controlChar) CheckApplies(c *x509.Certificate) bool {
@@ -59,6 +61,7 @@ func (l *controlChar) CheckApplies(c *x509.Certificate) bool {
 }
 
 //nolint:nestif
+//nolint:cyclop
 func (l *controlChar) Execute(c *x509.Certificate) *lint.LintResult {
 	for _, firstLvl := range c.ExplicitTexts {
 		for _, text := range firstLvl {

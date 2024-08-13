@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,9 +15,9 @@
 package mozilla
 
 import (
-	"encoding/asn1"
 	"fmt"
 
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -39,18 +39,20 @@ CAs MUST NOT issue certificates that have:
 ********************************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_mp_authority_key_identifier_correct",
-		Description:   "CAs MUST NOT issue certificates that have authority key IDs that include both the key ID and the issuer's issuer name and serial number",
-		Citation:      "Mozilla Root Store Policy / Section 5.2",
-		Source:        lint.MozillaRootStorePolicy,
-		EffectiveDate: util.MozillaPolicy22Date,
-		Lint:          &authorityKeyIdentifierCorrect{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_mp_authority_key_identifier_correct",
+			Description:   "CAs MUST NOT issue certificates that have authority key IDs that include both the key ID and the issuer's issuer name and serial number",
+			Citation:      "Mozilla Root Store Policy / Section 5.2",
+			Source:        lint.MozillaRootStorePolicy,
+			EffectiveDate: util.MozillaPolicy22Date,
+		},
+		Lint: NewAuthorityKeyIdentifierCorrect,
 	})
 }
 
-func (l *authorityKeyIdentifierCorrect) Initialize() error {
-	return nil
+func NewAuthorityKeyIdentifierCorrect() lint.LintInterface {
+	return &authorityKeyIdentifierCorrect{}
 }
 
 func (l *authorityKeyIdentifierCorrect) CheckApplies(c *x509.Certificate) bool {

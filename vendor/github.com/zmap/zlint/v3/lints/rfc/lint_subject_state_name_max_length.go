@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -32,22 +32,24 @@ RFC 5280: A.1
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_subject_state_name_max_length",
-		Description:   "The 'State Name' field of the subject MUST be less than 129 characters",
-		Citation:      "RFC 5280: A.1",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC2459Date,
-		Lint:          &subjectStateNameMaxLength{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_subject_state_name_max_length",
+			Description:   "The 'State Name' field of the subject MUST be less than 129 characters",
+			Citation:      "RFC 5280: A.1",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC2459Date,
+		},
+		Lint: NewSubjectStateNameMaxLength,
 	})
 }
 
-func (l *subjectStateNameMaxLength) Initialize() error {
-	return nil
+func NewSubjectStateNameMaxLength() lint.LintInterface {
+	return &subjectStateNameMaxLength{}
 }
 
 func (l *subjectStateNameMaxLength) CheckApplies(c *x509.Certificate) bool {
-	return true
+	return len(c.Subject.Province) > 0
 }
 
 func (l *subjectStateNameMaxLength) Execute(c *x509.Certificate) *lint.LintResult {

@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -30,18 +30,20 @@ Required/Optional: Required
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ext_san_missing",
-		Description:   "Subscriber certificates MUST contain the Subject Alternate Name extension",
-		Citation:      "BRs: 7.1.4.2.1",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &SANMissing{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ext_san_missing",
+			Description:   "Subscriber certificates MUST contain the Subject Alternate Name extension",
+			Citation:      "BRs: 7.1.4.2.1",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABEffectiveDate,
+		},
+		Lint: NewSANMissing,
 	})
 }
 
-func (l *SANMissing) Initialize() error {
-	return nil
+func NewSANMissing() lint.LintInterface {
+	return &SANMissing{}
 }
 
 func (l *SANMissing) CheckApplies(c *x509.Certificate) bool {

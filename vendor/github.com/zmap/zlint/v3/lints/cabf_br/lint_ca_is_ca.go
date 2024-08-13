@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,8 +15,7 @@ package cabf_br
  */
 
 import (
-	"encoding/asn1"
-
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -25,23 +24,25 @@ import (
 type caIsCA struct{}
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ca_is_ca",
-		Description:   "Root and Sub CA Certificate: The CA field MUST be set to true.",
-		Citation:      "BRs: 7.1.2.1, BRs: 7.1.2.2",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &caIsCA{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ca_is_ca",
+			Description:   "Root and Sub CA Certificate: The CA field MUST be set to true.",
+			Citation:      "BRs: 7.1.2.1, BRs: 7.1.2.2",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABEffectiveDate,
+		},
+		Lint: NewCaIsCA,
 	})
+}
+
+func NewCaIsCA() lint.LintInterface {
+	return &caIsCA{}
 }
 
 type basicConstraints struct {
 	IsCA       bool `asn1:"optional"`
 	MaxPathLen int  `asn1:"optional,default:-1"`
-}
-
-func (l *caIsCA) Initialize() error {
-	return nil
 }
 
 func (l *caIsCA) CheckApplies(c *x509.Certificate) bool {

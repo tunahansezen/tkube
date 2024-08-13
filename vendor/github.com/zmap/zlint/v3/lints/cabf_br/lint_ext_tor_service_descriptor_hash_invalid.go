@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -27,14 +27,20 @@ import (
 type torServiceDescHashInvalid struct{}
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ext_tor_service_descriptor_hash_invalid",
-		Description:   "certificates with v2 .onion names need valid TorServiceDescriptors in extension",
-		Citation:      "BRs: Ballot 201, Ballot SC27",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABV201Date,
-		Lint:          &torServiceDescHashInvalid{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ext_tor_service_descriptor_hash_invalid",
+			Description:   "certificates with v2 .onion names need valid TorServiceDescriptors in extension",
+			Citation:      "BRs: Ballot 201, Ballot SC27",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABV201Date,
+		},
+		Lint: NewTorServiceDescHashInvalid,
 	})
+}
+
+func NewTorServiceDescHashInvalid() lint.LintInterface {
+	return &torServiceDescHashInvalid{}
 }
 
 func (l *torServiceDescHashInvalid) Initialize() error {
@@ -49,7 +55,8 @@ func (l *torServiceDescHashInvalid) CheckApplies(c *x509.Certificate) bool {
 	ext := util.GetExtFromCert(c, util.BRTorServiceDescriptor)
 	return ext != nil || (util.IsSubscriberCert(c) &&
 		util.CertificateSubjInTLD(c, util.OnionTLD) &&
-		util.IsEV(c.PolicyIdentifiers))
+		util.IsEV(c.PolicyIdentifiers)) &&
+		util.IsOnionV2Cert(c)
 }
 
 // failResult is a small utility function for creating a failed lint result.
@@ -99,15 +106,17 @@ func lintOnionURL(onion string) *lint.LintResult {
 // Execute will lint the provided certificate. An lint.Error lint.LintResult will be
 // returned if:
 //
-//   1) There is no TorServiceDescriptor extension present and it's required
-//   2) There were no TorServiceDescriptors parsed by zcrypto
-//   3) There are TorServiceDescriptorHash entries with an invalid Onion URL.
-//   4) There are TorServiceDescriptorHash entries with an unknown hash
-//      algorithm or incorrect hash bit length.
-//   5) There is a TorServiceDescriptorHash entry that doesn't correspond to
-//      an onion subject in the cert.
-//   6) There is an onion subject in the cert that doesn't correspond to
-//      a TorServiceDescriptorHash, if required.
+//  1. There is no TorServiceDescriptor extension present and it's required
+//  2. There were no TorServiceDescriptors parsed by zcrypto
+//  3. There are TorServiceDescriptorHash entries with an invalid Onion URL.
+//  4. There are TorServiceDescriptorHash entries with an unknown hash
+//     algorithm or incorrect hash bit length.
+//  5. There is a TorServiceDescriptorHash entry that doesn't correspond to
+//     an onion subject in the cert.
+//  6. There is an onion subject in the cert that doesn't correspond to
+//     a TorServiceDescriptorHash, if required.
+//
+//nolint:cyclop
 func (l *torServiceDescHashInvalid) Execute(c *x509.Certificate) *lint.LintResult {
 	// If the certificate is EV, the BRTorServiceDescriptor extension is required.
 	// We know that `CheckApplies` will only apply if the certificate has the

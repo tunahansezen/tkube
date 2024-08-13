@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -34,18 +34,20 @@ It SHOULD also contain the HTTP URL of the Issuing CA’s certificate (accessMet
 ***************************************************************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_sub_cert_aia_does_not_contain_ocsp_url",
-		Description:   "Subscriber Certificate: authorityInformationAccess MUST contain the HTTP URL of the Issuing CA's OSCP responder.",
-		Citation:      "BRs: 7.1.2.3",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &subCertOcspUrl{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_sub_cert_aia_does_not_contain_ocsp_url",
+			Description:   "Subscriber Certificate: authorityInformationAccess MUST contain the HTTP URL of the Issuing CA's OCSP responder.",
+			Citation:      "BRs: 7.1.2.3",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABEffectiveDate,
+		},
+		Lint: NewSubCertOcspUrl,
 	})
 }
 
-func (l *subCertOcspUrl) Initialize() error {
-	return nil
+func NewSubCertOcspUrl() lint.LintInterface {
+	return &subCertOcspUrl{}
 }
 
 func (l *subCertOcspUrl) CheckApplies(c *x509.Certificate) bool {

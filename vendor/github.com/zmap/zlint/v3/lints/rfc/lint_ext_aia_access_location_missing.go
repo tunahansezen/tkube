@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -36,18 +36,20 @@ An authorityInfoAccess extension may include multiple instances of
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "w_ext_aia_access_location_missing",
-		Description:   "When the id-ad-caIssuers accessMethod is used, at least one instance SHOULD specify an accessLocation that is an HTTP or LDAP URI",
-		Citation:      "RFC 5280: 4.2.2.1",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC5280Date,
-		Lint:          &aiaNoHTTPorLDAP{},
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "w_ext_aia_access_location_missing",
+			Description:   "When the id-ad-caIssuers accessMethod is used, at least one instance SHOULD specify an accessLocation that is an HTTP or LDAP URI",
+			Citation:      "RFC 5280: 4.2.2.1",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC5280Date,
+		},
+		Lint: NewAiaNoHTTPorLDAP,
 	})
 }
 
-func (l *aiaNoHTTPorLDAP) Initialize() error {
-	return nil
+func NewAiaNoHTTPorLDAP() lint.LintInterface {
+	return &aiaNoHTTPorLDAP{}
 }
 
 func (l *aiaNoHTTPorLDAP) CheckApplies(c *x509.Certificate) bool {
