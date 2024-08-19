@@ -76,9 +76,9 @@ func Install(nodes model.KubeNodes) {
 				os.UmountISO(constant.IsoMountDir, node.IP)
 				os.MountISO(constant.IsoMountDir, IsoPath, node.IP)
 				var repoAddress string
-				if os.OS == os.Ubuntu {
+				if os.InstallerType == os.Apt {
 					repoAddress = fmt.Sprintf("file://%s/repo ./", constant.IsoMountDir)
-				} else if os.OS == os.CentOS {
+				} else if os.InstallerType == os.Yum || os.InstallerType == os.Dnf {
 					repoAddress = fmt.Sprintf("file://%s/repo", constant.IsoMountDir)
 				}
 				os.AddRepository("tkube", "tkube", "tkube", repoAddress, "", node.IP)
@@ -100,9 +100,9 @@ func Install(nodes model.KubeNodes) {
 			os.UmountISO(constant.IsoMountDir, node.IP)
 			os.MountISO(constant.IsoMountDir, IsoPath, node.IP)
 			var repoAddress string
-			if os.OS == os.Ubuntu {
+			if os.InstallerType == os.Apt {
 				repoAddress = fmt.Sprintf("file://%s/repo ./", constant.IsoMountDir)
-			} else if os.OS == os.CentOS {
+			} else if os.InstallerType == os.Yum || os.InstallerType == os.Dnf {
 				repoAddress = fmt.Sprintf("file://%s/repo", constant.IsoMountDir)
 			}
 			os.AddRepository("tkube", "tkube", "tkube", repoAddress, "", node.IP)
@@ -114,6 +114,7 @@ func Install(nodes model.KubeNodes) {
 	kubeInstReqMap := removeKubePackagesIfNecessary(nodes)
 	prepareNodes(nodes)
 	installDocker(nodes)
+	installContainerd(nodes)
 	installKubePackages(nodes, kubeInstReqMap)
 	if multiMasterDeployment {
 		generateAndDistributeKubeAndEtcdCerts(nodes)
@@ -183,11 +184,11 @@ func prepareNodes(nodes model.KubeNodes) {
 	for _, kubeNode := range nodes.Nodes {
 		os.RunCommandOn("sudo sysctl fs.inotify.max_user_watches=1048576", kubeNode.IP, true)
 		os.RunCommandOn("sudo swapoff -a", kubeNode.IP, true)
-		os.RunCommandOn("sudo mkdir -p /sys/fs/cgroup/cpu,cpuacct", kubeNode.IP, true)
-		os.RunCommandOn("sudo mount -t cgroup -o cpu,cpuacct none /sys/fs/cgroup/cpu,cpuacct || true", kubeNode.IP, true)
-		os.RunCommandOn("sudo mkdir -p /sys/fs/cgroup/systemd", kubeNode.IP, true)
-		os.RunCommandOn("sudo mount -t cgroup -o none,name=systemd cgroup /sys/fs/cgroup/systemd || true", kubeNode.IP, true)
-		if os.OS == os.CentOS && cfg.DeploymentCfg.CentOS.SetSelinuxPermissive {
+		//os.RunCommandOn("sudo mkdir -p /sys/fs/cgroup/cpu,cpuacct", kubeNode.IP, true)
+		//os.RunCommandOn("sudo mount -t cgroup -o cpu,cpuacct none /sys/fs/cgroup/cpu,cpuacct || true", kubeNode.IP, true)
+		//os.RunCommandOn("sudo mkdir -p /sys/fs/cgroup/systemd", kubeNode.IP, true)
+		//os.RunCommandOn("sudo mount -t cgroup -o none,name=systemd cgroup /sys/fs/cgroup/systemd || true", kubeNode.IP, true)
+		if (os.OS == os.CentOS || os.OS == os.Rocky) && cfg.DeploymentCfg.CentOS.SetSelinuxPermissive {
 			if os.IsSelinuxEnabled(kubeNode.IP) {
 				util.StartSpinner("Setting SELinux to permissive mode")
 				os.RunCommandOn("sudo setenforce 0", kubeNode.IP, true)
@@ -242,6 +243,11 @@ func installPackages(nodes model.KubeNodes) {
 }
 
 func installDocker(nodes model.KubeNodes) {
+	kubeSemVer, _ := version.NewVersion(KubeVersion)
+	kube124Ver, _ := version.NewVersion("1.24")
+	if kubeSemVer.GreaterThanOrEqual(kube124Ver) && !cfg.DeploymentCfg.Docker.Enabled {
+		return
+	}
 	repo := cfg.DeploymentCfg.Docker.Repo
 	for _, kubeNode := range nodes.Nodes {
 		isoPathDefined := IsoPath != ""
@@ -321,7 +327,11 @@ func installDocker(nodes model.KubeNodes) {
 		os.RunCommandOn("sudo gpasswd -a $USER docker", kubeNode.IP, true)
 		os.RunCommandOn("newgrp docker", kubeNode.IP, true)
 		os.RunCommandOn("sudo chown $(id -u):$(id -g) $HOME/.docker/config.json || true", kubeNode.IP, true)
-
+	}
+}
+func installContainerd(nodes model.KubeNodes) {
+	for _, kubeNode := range nodes.Nodes {
+		os.InstallPackage("containerd.io", kubeNode.IP)
 		kubeSemVer, _ := version.NewVersion(KubeVersion)
 		kube124Ver, _ := version.NewVersion("1.24")
 		if kubeSemVer.GreaterThanOrEqual(kube124Ver) {
@@ -783,6 +793,9 @@ func initKubernetes(nodes model.KubeNodes) {
 			cfg.DeploymentCfg, multiMasterDeployment),
 			fmt.Sprintf("%s/kubeadm-config.yaml", path.GetTKubeCfgDir()), firstMasterNode.IP)
 		util.StopSpinner("", logsymbols.Success)
+		kubeConf := "net.bridge.bridge-nf-call-ip6tables = 1\nnet.bridge.bridge-nf-call-iptables = 1\nnet.ipv4.ip_forward = 1\n"
+		os.CreateFile([]byte(kubeConf), "/etc/sysctl.d/kubernetes.conf", firstMasterNode.IP)
+		os.RunCommandOn("sudo sysctl --system", firstMasterNode.IP, true)
 		os.RunCommandOn(fmt.Sprintf("sudo kubeadm init --config %s/kubeadm-config.yaml --upload-certs",
 			path.GetTKubeCfgDir()), firstMasterNode.IP, false)
 		os.RunCommandOn("mkdir -p $HOME/.kube", firstMasterNode.IP, true)

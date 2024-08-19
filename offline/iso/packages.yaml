@@ -1,10 +1,8 @@
 common:
-  - sshpass
   - bash-completion
   - net-tools
   - haproxy
   - keepalived
-  - ceph-common
   - lvm2
   - telnet
   - tcpdump
@@ -17,7 +15,7 @@ common:
   - psmisc
   - ebtables
 commonSecondary:
-  - ntp
+  - sshpass
 centos:
   - yum-utils
   - yum-plugin-versionlock
@@ -29,6 +27,9 @@ centos:
   - nss-sysinit
   - nss-tools
   - conntrack-tools
+  - ceph-common
+centosSecondary:
+  - ntp
 ubuntu:
   - dnsutils
   - git
@@ -37,3 +38,19 @@ ubuntu:
   - nfs-common
   - openssh-server
   - sudo
+  - ceph-common
+ubuntuSecondary:
+  - ntp
+rockylinux:
+  - yum-utils
+  - yum-plugin-versionlock
+  - nfs-utils
+  - bind-utils
+  - glusterfs-fuse
+  - lz4
+  - nss
+  - nss-sysinit
+  - nss-tools
+  - conntrack-tools
+rockylinuxSecondary:
+  - ntpsec

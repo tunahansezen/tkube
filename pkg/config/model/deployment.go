@@ -57,8 +57,9 @@ type CRI struct {
 }
 
 type Docker struct {
-	Repo   Repo            `yaml:"repo"`
-	Daemon DockerDaemonCfg `yaml:"daemon" json:"daemon"`
+	Enabled bool            `yaml:"enabled"`
+	Repo    Repo            `yaml:"repo"`
+	Daemon  DockerDaemonCfg `yaml:"daemon" json:"daemon"`
 }
 
 type DockerDaemonCfg struct {

@@ -1,57 +1,55 @@
 ARG OS_NAME=ubuntu
 ARG OS_VERSION=22.04
-FROM $OS_NAME:$OS_VERSION AS os
+FROM $OS_NAME/$OS_NAME:$OS_VERSION AS os
 ARG OS_NAME
 ARG OS_VERSION
 ARG VERSION=0.0.0
 ARG TARGET_ARCH=amd64
 ARG OS_RELEASE=jammy
-ARG DIR=${OS_NAME}-${OS_VERSION}-${TARGET_ARCH}-debs
+ARG DIR=${OS_NAME}-${OS_VERSION}-${TARGET_ARCH}-rpms
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 ARG PKGS=.common[],.$OS_NAME[]
 ARG SECONDARY_PKGS=.commonSecondary[],.${OS_NAME}Secondary[]
-ARG MANDATORY_PACKAGES="tzdata apt-transport-https software-properties-common ca-certificates curl wget gnupg dpkg-dev genisoimage"
+ARG MANDATORY_PACKAGES="tzdata ca-certificates curl-minimal wget gnupg2 yum-utils createrepo mkisofs epel-release"
 
-RUN apt update -qq \
-    && apt install -y --no-install-recommends $MANDATORY_PACKAGES
+RUN dnf install -q -y $MANDATORY_PACKAGES
 
 WORKDIR /package
 COPY iso/packages.yaml .
 
 COPY --from=mikefarah/yq:4.44.1 /usr/bin/yq /usr/bin/yq
-RUN yq eval "${PKGS}" packages.yaml | xargs apt install -y --no-install-recommends
-RUN yq eval "${SECONDARY_PKGS}" packages.yaml | xargs apt install -y --no-install-recommends
+RUN yq eval "${PKGS}" packages.yaml | xargs dnf install -q -y
+RUN yq eval "${SECONDARY_PKGS}" packages.yaml | xargs dnf install -q -y
 
-ARG DOCKER_VERSION=20.10.24
 ARG DOCKER_REPO_KEY="https://download.docker.com/linux/ubuntu/gpg"
 ARG DOCKER_REPO_ADDRESS="https://download.docker.com/linux/ubuntu $OS_RELEASE stable"
-RUN curl -fsSL $DOCKER_REPO_KEY | apt-key add -qq - \
-    && echo "deb [arch=$TARGET_ARCH] $DOCKER_REPO_ADDRESS" > /etc/apt/sources.list.d/docker.list \
-    && apt update -qq \
-    && DOCKER_EXACT_VERSION=$(apt list -a docker-ce 2>/dev/null | cut -d '[' -f1 | grep ${DOCKER_VERSION} | head -1 | xargs | cut -d ' ' -f2) \
-    && if [ -z "$DOCKER_EXACT_VERSION" ]; then echo "Docker not found with version $DOCKER_VERSION"; exit 1; fi \
-    && apt install -y --no-install-recommends docker-ce=$DOCKER_EXACT_VERSION docker-ce-cli=$DOCKER_EXACT_VERSION
+ARG DOCKER_GPG_PATH="/etc/pki/rpm-gpg/docker.gpg"
+RUN curl -fsSL $DOCKER_REPO_KEY | tee ${DOCKER_GPG_PATH} >/dev/null \
+    && rpm --import ${DOCKER_GPG_PATH} \
+    && echo -e "[docker]\nname=docker\nbaseurl=${DOCKER_REPO_ADDRESS}\nenabled=1\ngpgcheck=1\ngpgkey=file://${DOCKER_GPG_PATH}\n" > /etc/yum.repos.d/docker.repo \
+    && dnf makecache --refresh \
+    && dnf install -y -q -y podman containerd.io
 
 ARG KUBE_VERSION=1.30.2
 ARG KUBE_MAJOR_VERSION=1.30
 ARG KUBE_REPO_KEY="https://pkgs.k8s.io/core:/stable:/v$KUBE_MAJOR_VERSION/deb/Release.key"
 ARG KUBE_REPO_ADDRESS="https://pkgs.k8s.io/core:/stable:/v$KUBE_MAJOR_VERSION/deb/ /"
-RUN mkdir -p /etc/apt/keyrings \
-    && curl -fsSL $KUBE_REPO_KEY | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] $KUBE_REPO_ADDRESS" > /etc/apt/sources.list.d/kubernetes.list \
-    && apt update -qq \
-    && KUBE_EXACT_VERSION=$(apt list -a kubelet 2>/dev/null | cut -d '[' -f1 | grep ${KUBE_VERSION} | head -1 | xargs | cut -d ' ' -f2) \
+ARG KUBE_GPG_PATH="/etc/pki/rpm-gpg/kube.gpg"
+RUN curl -fsSL $KUBE_REPO_KEY | tee ${KUBE_GPG_PATH} >/dev/null \
+    && rpm --import ${KUBE_GPG_PATH} \
+    && echo -e "[kube]\nname=kube\nbaseurl=${KUBE_REPO_ADDRESS}\nenabled=1\ngpgcheck=1\ngpgkey=file://${KUBE_GPG_PATH}\n" > /etc/yum.repos.d/kube.repo \
+    && yum makecache -y \
+    && KUBE_EXACT_VERSION=$(yum list kubelet --showduplicates 2>/dev/null | grep ${KUBE_VERSION} | tail -1 | xargs | cut -d ' ' -f2 | cut -d ':' -f2 | cut -d '-' -f1) \
     && if [ -z "$KUBE_EXACT_VERSION" ]; then echo "Kubernetes not found with version $KUBE_VERSION"; exit 1; fi \
-    && apt install -y --no-install-recommends kubelet=$KUBE_EXACT_VERSION kubeadm=$KUBE_EXACT_VERSION kubectl=$KUBE_EXACT_VERSION
+    && yum install -y -q -y kubelet-$KUBE_EXACT_VERSION kubeadm-$KUBE_EXACT_VERSION kubectl-$KUBE_EXACT_VERSION
 
 ARG REPO_DIR=$DIR/repo
-RUN dpkg-query -W -f='${binary:Package}=${Version}\n' > packages.list \
-    && sort -u packages.list | xargs apt-get install --yes --reinstall --print-uris | awk -F "'" '{print $2}' | grep -v '^$' | sort -u > packages.urls \
+RUN rpm -qa > packages.list \
     && mkdir -p ${REPO_DIR} \
-    && wget -q -x -P ${REPO_DIR} -i packages.urls \
-    && cd ${REPO_DIR} \
-    && dpkg-scanpackages ./ /dev/null | gzip -9c > ./Packages.gz
+    && sort -u packages.list | xargs repoquery --location >> packages.urls \
+    && wget -P ${REPO_DIR} -i packages.urls \
+    && createrepo -d ${REPO_DIR}
 
 ARG KUBE_IMAGE_REGISTRY=registry.k8s.io
 ARG SKOPEO_VERSION=1.14.4
@@ -90,7 +88,7 @@ RUN echo "kubernetes: $KUBE_VERSION" >> ${DIR}/versions \
     && echo "etcd: $ETCD_VERSION" >> ${DIR}/versions \
     && echo "helm: $HELM_VERSION" >> ${DIR}/versions
 
-RUN genisoimage -r -o ${OS_NAME}-${OS_VERSION}_kube-${KUBE_VERSION}_registry-${VERSION}.iso ${DIR}
+RUN mkisofs -r -o ${OS_NAME}-${OS_VERSION}_kube-${KUBE_VERSION}_registry-${VERSION}.iso ${DIR}
 
 FROM scratch
 COPY --from=os /package/*.iso /
