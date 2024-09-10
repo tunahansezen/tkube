@@ -862,6 +862,7 @@ func initKubernetes(nodes model.KubeNodes) {
 		}
 		kubeConf := "net.bridge.bridge-nf-call-ip6tables = 1\nnet.bridge.bridge-nf-call-iptables = 1\nnet.ipv4.ip_forward = 1\n"
 		os.CreateFile([]byte(kubeConf), "/etc/sysctl.d/kubernetes.conf", masterNode.IP)
+		os.RunCommandOn("sudo sysctl --system", firstMasterNode.IP, true)
 		util.StartSpinner(fmt.Sprintf("Master node \"%s\" joining to cluster", masterNode.Hostname))
 		joinCmd := fmt.Sprintf("%s --apiserver-advertise-address=%s", joinAsMasterCmd, masterNode.IP)
 		os.RunCommandOn(fmt.Sprintf("sudo %s", joinCmd), masterNode.IP, true)
@@ -879,6 +880,7 @@ func initKubernetes(nodes model.KubeNodes) {
 	for _, workerNode := range nodes.GetWorkerKubeNodes() {
 		kubeConf := "net.bridge.bridge-nf-call-ip6tables = 1\nnet.bridge.bridge-nf-call-iptables = 1\nnet.ipv4.ip_forward = 1\n"
 		os.CreateFile([]byte(kubeConf), "/etc/sysctl.d/kubernetes.conf", workerNode.IP)
+		os.RunCommandOn("sudo sysctl --system", firstMasterNode.IP, true)
 		if joinAsWorkerCmd == "" {
 			joinAsWorkerCmd = os.RunCommandOn("sudo kubeadm token create --print-join-command",
 				firstMasterNode.IP, true)
