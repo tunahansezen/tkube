@@ -10,14 +10,14 @@ common:
   - tcpdump
   - socat
   - openssl
-  - chrony
+#  - chrony
   - conntrack
   - ipvsadm
   - ipset
   - psmisc
   - ebtables
-commonSecondary:
-  - ntp
+#commonSecondary:
+#  - ntp
 centos:
   - yum-utils
   - yum-plugin-versionlock
