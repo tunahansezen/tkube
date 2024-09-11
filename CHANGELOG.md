@@ -1,3 +1,8 @@
+## v1.3.2
+
+### Added or Changed
+- Rocky Linux Integration
+
 ## v1.3.1
 
 ### Added or Changed
