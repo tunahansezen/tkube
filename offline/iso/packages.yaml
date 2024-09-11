@@ -14,8 +14,8 @@ common:
   - ipset
   - psmisc
   - ebtables
-#commonSecondary:
-#  - ntp
+commonSecondary:
+  - sshpass
 centos:
   - yum-utils
   - yum-plugin-versionlock
@@ -28,8 +28,8 @@ centos:
   - nss-tools
   - conntrack-tools
   - ceph-common
-centosSecondary:
-  - ntp
+centosSecondary: []
+#  - ntp
 ubuntu:
   - dnsutils
   - git
@@ -39,8 +39,8 @@ ubuntu:
   - openssh-server
   - sudo
   - ceph-common
-ubuntuSecondary:
-  - ntp
+ubuntuSecondary: []
+#  - ntp
 rockylinux:
   - yum-utils
   - yum-plugin-versionlock
@@ -52,5 +52,5 @@ rockylinux:
   - nss-sysinit
   - nss-tools
   - conntrack-tools
-rockylinuxSecondary:
-  - ntpsec
+rockylinuxSecondary: []
+#  - ntpsec
