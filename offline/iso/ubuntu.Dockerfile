@@ -10,7 +10,7 @@ ARG DIR=${OS_NAME}-${OS_VERSION}-${TARGET_ARCH}-debs
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 ARG PKGS=.common[],.$OS_NAME[]
-#ARG SECONDARY_PKGS=.commonSecondary,.${OS_NAME}Secondary[]
+#ARG SECONDARY_PKGS=.commonSecondary[],.${OS_NAME}Secondary[]
 ARG MANDATORY_PACKAGES="tzdata apt-transport-https software-properties-common ca-certificates curl wget gnupg dpkg-dev genisoimage"
 
 RUN apt update -qq \

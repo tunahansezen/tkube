@@ -4,19 +4,19 @@ VERSION                           ?= $(shell cat ./../VERSION)
 TARGET_ARCH			              ?= amd64
 DOCKER_VERSION                     =
 DOCKER_REPO_KEY                    =
-DEFAULT_UBUNTU_DOCKER_REPO_KEY     = https://download.docker.com/linux/ubuntu/gpg
-DEFAULT_CENTOS_DOCKER_REPO_KEY     = https://download.docker.com/linux/centos/gpg
+DEFAULT_APT_DOCKER_REPO_KEY     = https://download.docker.com/linux/ubuntu/gpg
+DEFAULT_YUM_DOCKER_REPO_KEY     = https://download.docker.com/linux/centos/gpg
 DOCKER_REPO_ADDRESS                =
-DEFAULT_UBUNTU_DOCKER_REPO_ADDRESS = https://download.docker.com/linux/ubuntu ${OS_RELEASE} stable
-DEFAULT_CENTOS_DOCKER_REPO_ADDRESS = https://download.docker.com/linux/centos/7.9/x86_64/stable # fixme static
+DEFAULT_APT_DOCKER_REPO_ADDRESS = https://download.docker.com/linux/ubuntu ${OS_RELEASE} stable
+DEFAULT_YUM_DOCKER_REPO_ADDRESS = https://download.docker.com/linux/centos/7.9/x86_64/stable # fixme static
 KUBE_VERSION                       =
 KUBE_MAJOR_VERSION                 = $(shell echo $(KUBE_VERSION) | cut -d '.' -f 1,2)
 KUBE_REPO_KEY                      =
-DEFAULT_UBUNTU_KUBE_REPO_KEY       = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_VERSION}/deb/Release.key
-DEFAULT_CENTOS_KUBE_REPO_KEY       = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_VERSION}/rpm/repodata/repomd.xml.key
+DEFAULT_APT_KUBE_REPO_KEY       = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_VERSION}/deb/Release.key
+DEFAULT_YUM_KUBE_REPO_KEY       = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_VERSION}/rpm/repodata/repomd.xml.key
 KUBE_REPO_ADDRESS                  =
-DEFAULT_UBUNTU_KUBE_REPO_ADDRESS   = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_VERSION}/deb/ /
-DEFAULT_CENTOS_KUBE_REPO_ADDRESS   = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_VERSION}/rpm/
+DEFAULT_APT_KUBE_REPO_ADDRESS   = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_VERSION}/deb/ /
+DEFAULT_YUM_KUBE_REPO_ADDRESS   = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_VERSION}/rpm/
 ETCD_VERSION                       = 3.5.14
 ETCD_URL                           = https://github.com/coreos/etcd/releases/download/v${ETCD_VERSION}/etcd-v${ETCD_VERSION}-linux-${TARGET_ARCH}.tar.gz
 HELM_VERSION                       = 3.13.3
@@ -24,9 +24,10 @@ HELM_URL                           = https://get.helm.sh/helm-v${HELM_VERSION}-l
 EXTRA_DOCKER_BUILD_ARGS            =
 
 DEST_PATH 			     = ./output
-OS_ARR                   = ubuntu centos
+OS_ARR                   = ubuntu centos rockylinux
 ubuntu_VERSIONS          = 18.04 20.04 22.04
 centos_VERSIONS          = 7
+rockylinux_VERSIONS           = 9
 define ubuntu_RELEASES
 18.04=bionic\
 20.04=focal\
@@ -34,6 +35,9 @@ define ubuntu_RELEASES
 endef
 define centos_RELEASES
 7=centos
+endef
+define rockylinux_RELEASES
+9=rockylinux
 endef
 
 check_semver = $(if $(shell echo $(1) | grep -Eq '^([0-9]+)\.([0-9]+)\.([0-9]+)$$'; echo $$?),, $(error Version '$(1)' is not valid. It should be in the form of MAJOR.MINOR.PATCH))
@@ -118,30 +122,30 @@ calculate_calico:
 calculate_repos:
 ifndef DOCKER_REPO_KEY
 ifeq ($(OS_NAME), ubuntu)
-	$(eval DOCKER_REPO_KEY=${DEFAULT_UBUNTU_DOCKER_REPO_KEY})
+	$(eval DOCKER_REPO_KEY=${DEFAULT_APT_DOCKER_REPO_KEY})
 else
-	$(eval DOCKER_REPO_KEY=${DEFAULT_CENTOS_DOCKER_REPO_KEY})
+	$(eval DOCKER_REPO_KEY=${DEFAULT_YUM_DOCKER_REPO_KEY})
 endif
 endif
 ifndef DOCKER_REPO_ADDRESS
 ifeq ($(OS_NAME), ubuntu)
-	$(eval DOCKER_REPO_ADDRESS=${DEFAULT_UBUNTU_DOCKER_REPO_ADDRESS})
+	$(eval DOCKER_REPO_ADDRESS=${DEFAULT_APT_DOCKER_REPO_ADDRESS})
 else
-	$(eval DOCKER_REPO_ADDRESS=${DEFAULT_CENTOS_DOCKER_REPO_ADDRESS})
+	$(eval DOCKER_REPO_ADDRESS=${DEFAULT_YUM_DOCKER_REPO_ADDRESS})
 endif
 endif
 ifndef KUBE_REPO_KEY
 ifeq ($(OS_NAME), ubuntu)
-	$(eval KUBE_REPO_KEY=${DEFAULT_UBUNTU_KUBE_REPO_KEY})
+	$(eval KUBE_REPO_KEY=${DEFAULT_APT_KUBE_REPO_KEY})
 else
-	$(eval KUBE_REPO_KEY=${DEFAULT_CENTOS_KUBE_REPO_KEY})
+	$(eval KUBE_REPO_KEY=${DEFAULT_YUM_KUBE_REPO_KEY})
 endif
 endif
 ifndef KUBE_REPO_ADDRESS
 ifeq ($(OS_NAME), ubuntu)
-	$(eval KUBE_REPO_ADDRESS=${DEFAULT_UBUNTU_KUBE_REPO_ADDRESS})
+	$(eval KUBE_REPO_ADDRESS=${DEFAULT_APT_KUBE_REPO_ADDRESS})
 else
-	$(eval KUBE_REPO_ADDRESS=${DEFAULT_CENTOS_KUBE_REPO_ADDRESS})
+	$(eval KUBE_REPO_ADDRESS=${DEFAULT_YUM_KUBE_REPO_ADDRESS})
 endif
 endif
 

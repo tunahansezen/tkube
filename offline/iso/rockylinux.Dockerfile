@@ -1,6 +1,6 @@
 ARG OS_NAME=ubuntu
 ARG OS_VERSION=22.04
-FROM $OS_NAME:$OS_VERSION AS os
+FROM $OS_NAME/$OS_NAME:$OS_VERSION AS os
 ARG OS_NAME
 ARG OS_VERSION
 ARG VERSION=0.0.0
@@ -11,31 +11,25 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 ARG PKGS=.common[],.$OS_NAME[]
 ARG SECONDARY_PKGS=.commonSecondary[],.${OS_NAME}Secondary[]
-ARG MANDATORY_PACKAGES="tzdata ca-certificates curl wget gnupg2 yum-utils createrepo mkisofs epel-release"
+ARG MANDATORY_PACKAGES="tzdata ca-certificates curl-minimal wget gnupg2 yum-utils createrepo mkisofs epel-release"
 
-RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* \
-    && sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
-
-RUN yum install -q -y $MANDATORY_PACKAGES
+RUN dnf install -q -y $MANDATORY_PACKAGES
 
 WORKDIR /package
 COPY iso/packages.yaml .
 
 COPY --from=mikefarah/yq:4.44.1 /usr/bin/yq /usr/bin/yq
-RUN yq eval "${PKGS}" packages.yaml | xargs yum install -q -y
-RUN yq eval "${SECONDARY_PKGS}" packages.yaml | xargs yum install -q -y
+RUN yq eval "${PKGS}" packages.yaml | xargs dnf install -q -y
+RUN yq eval "${SECONDARY_PKGS}" packages.yaml | xargs dnf install -q -y
 
-ARG DOCKER_VERSION=20.10.24
 ARG DOCKER_REPO_KEY="https://download.docker.com/linux/ubuntu/gpg"
 ARG DOCKER_REPO_ADDRESS="https://download.docker.com/linux/ubuntu $OS_RELEASE stable"
 ARG DOCKER_GPG_PATH="/etc/pki/rpm-gpg/docker.gpg"
 RUN curl -fsSL $DOCKER_REPO_KEY | tee ${DOCKER_GPG_PATH} >/dev/null \
     && rpm --import ${DOCKER_GPG_PATH} \
     && echo -e "[docker]\nname=docker\nbaseurl=${DOCKER_REPO_ADDRESS}\nenabled=1\ngpgcheck=1\ngpgkey=file://${DOCKER_GPG_PATH}\n" > /etc/yum.repos.d/docker.repo \
-    && yum makecache -y \
-    && DOCKER_EXACT_VERSION=$(yum list docker-ce --showduplicates 2>/dev/null | grep ${DOCKER_VERSION} | tail -1 | xargs | cut -d ' ' -f2 | cut -d ':' -f2 | cut -d '-' -f1) \
-    && if [ -z "$DOCKER_EXACT_VERSION" ]; then echo "Docker not found with version $DOCKER_VERSION"; exit 1; fi \
-    && yum install -y -q -y docker-ce-$DOCKER_EXACT_VERSION docker-ce-cli-$DOCKER_EXACT_VERSION
+    && dnf makecache --refresh \
+    && dnf install -y -q -y podman containerd.io
 
 ARG KUBE_VERSION=1.30.2
 ARG KUBE_MAJOR_VERSION=1.30

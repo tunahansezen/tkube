@@ -133,7 +133,7 @@ func askDeploymentConfig() (err error) {
 		}
 	}
 
-	if os.OS == os.CentOS {
+	if os.OS == os.CentOS || os.OS == os.Rocky {
 		if firstAsk {
 			DeploymentCfg.CentOS = model.CentOS{SetSelinuxPermissive: true}
 		}
@@ -141,9 +141,9 @@ func askDeploymentConfig() (err error) {
 
 	if len(DeploymentCfg.Packages) == 0 {
 		DeploymentCfg.Packages = []string{"sshpass", "ca-certificates", "curl", "wget", "bash-completion", "net-tools"}
-		if os.OS == os.Ubuntu {
+		if os.InstallerType == os.Apt {
 			DeploymentCfg.Packages = append(DeploymentCfg.Packages, "gnupg", "apt-transport-https")
-		} else if os.OS == os.CentOS {
+		} else if os.InstallerType == os.Yum || os.InstallerType == os.Dnf {
 			DeploymentCfg.Packages = append(DeploymentCfg.Packages, "gnupg2", "yum-utils", "yum-plugin-versionlock")
 		}
 	}
@@ -205,12 +205,13 @@ func askDeploymentConfig() (err error) {
 
 	// docker
 	if DeploymentCfg.Docker.Repo.Address == "" {
+		DeploymentCfg.Docker.Enabled = false
 		DeploymentCfg.Docker.Repo.Enabled = true
 		DeploymentCfg.Docker.Repo.Name = "Docker"
-		if os.OS == os.Ubuntu {
+		if os.InstallerType == os.Apt {
 			DeploymentCfg.Docker.Repo.Address = constant.DefaultDockerAptRepoAddress
 			DeploymentCfg.Docker.Repo.Key = constant.DefaultDockerAptRepoKey
-		} else if os.OS == os.CentOS {
+		} else if os.InstallerType == os.Yum || os.InstallerType == os.Dnf {
 			DeploymentCfg.Docker.Repo.Address = constant.DefaultDockerYumRepoAddress
 			DeploymentCfg.Docker.Repo.Key = constant.DefaultDockerYumRepoKey
 		}
@@ -288,10 +289,10 @@ func askDeploymentConfig() (err error) {
 	if DeploymentCfg.Kubernetes.Repo.Address == "" {
 		DeploymentCfg.Kubernetes.Repo.Enabled = true
 		DeploymentCfg.Kubernetes.Repo.Name = "Kubernetes"
-		if os.OS == os.Ubuntu {
+		if os.InstallerType == os.Apt {
 			DeploymentCfg.Kubernetes.Repo.Address = constant.DefaultKubeAptRepoAddress
 			DeploymentCfg.Kubernetes.Repo.Key = constant.DefaultKubeAptRepoKey
-		} else if os.OS == os.CentOS {
+		} else if os.InstallerType == os.Yum || os.InstallerType == os.Dnf {
 			DeploymentCfg.Kubernetes.Repo.Address = constant.DefaultKubeYumRepoAddress
 			DeploymentCfg.Kubernetes.Repo.Key = constant.DefaultKubeYumRepoKey
 		}

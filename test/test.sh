@@ -1,8 +1,10 @@
 #!/bin/bash
+set -e
 
 red_color="\033[0;31m"
 color_off="\033[0m"
 
+test_id=""
 keep_vagrant=0
 skip_vagrant_up=0
 
@@ -32,11 +34,19 @@ while [ $# -gt 0 ]; do
   case "$1" in
   --keep-vagrant)
     keep_vagrant=1
-    shift 1
+    shift
     ;;
   --skip-vagrant-up)
     skip_vagrant_up=1
-    shift 1
+    shift
+    ;;
+  --test-id=*)
+    test_id="${1#*=}"
+    shift
+    ;;
+  --test-id)
+    test_id="$2"
+    shift 2
     ;;
   *)
     if [ "$1" == "destroy" ]; then
@@ -58,11 +68,31 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-echo -n "Enter the test number: "
-read -r test_no
+if [ -z "$test_id" ]; then
+  echo -n "Enter the test id: "
+  read -r test_id
+fi
 
-case $test_no in
-  1)
+case $test_id in
+  ubuntu22-online-single)
+    cd "$script_dir" || exit
+    if [ "$skip_vagrant_up" -eq 0 ]; then
+      sudo N=1 vagrant destroy -f
+      sudo rm -rf .vagrant
+      sudo N=1 IMAGE_NAME="bento/ubuntu-22.04" vagrant up
+    fi
+    ssh_known_host "192.168.50.10"
+    sshpass -p vagrant ssh vagrant@192.168.50.10 "mkdir -p \$HOME/.tkube/config"
+    sshpass -p vagrant scp config/deployment-ubuntu-single.yaml vagrant@192.168.50.10:/home/vagrant/.tkube/config/deployment.yaml
+    go run ../main.go install --remote 192.168.50.10
+    if [ "$keep_vagrant" -eq 0 ]; then
+      sudo N=1 IMAGE_NAME="bento/ubuntu-22.04" vagrant destroy -f
+      sudo rm -rf .vagrant
+    fi
+    cd - || exit
+    exit 0
+    ;;
+  ubuntu22-online)
     cd "$script_dir" || exit
     if [ "$skip_vagrant_up" -eq 0 ]; then
       sudo N=3 vagrant destroy -f
@@ -80,7 +110,7 @@ case $test_no in
     cd - || exit
     exit 0
     ;;
-  2)
+  centos7-online)
     cd "$script_dir" || exit
     if [ "$skip_vagrant_up" -eq 0 ]; then
       sudo N=3 vagrant destroy -f
@@ -98,7 +128,7 @@ case $test_no in
     ssh_known_host "192.168.50.30"
     sshpass -p vagrant ssh vagrant@192.168.50.30 "sudo sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*"
     sshpass -p vagrant ssh vagrant@192.168.50.30 "sudo sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*"
-    go run ../main.go install --remote 192.168.50.10 --debug
+    go run ../main.go install --remote 192.168.50.10
     if [ "$keep_vagrant" -eq 0 ]; then
       sudo vagrant destroy -f
       sudo N=3 rm -rf .vagrant
@@ -106,7 +136,47 @@ case $test_no in
     cd - || exit
     exit 0
     ;;
-  3) # ubuntu-22.04 kube-1.30.2
+  rocky9-online-single)
+    cd "$script_dir" || exit
+    if [ "$skip_vagrant_up" -eq 0 ]; then
+      sudo N=1 vagrant destroy -f
+      sudo rm -rf .vagrant
+      sudo N=1 IMAGE_NAME="bento/rockylinux-9" vagrant up
+    fi
+    ssh_known_host "192.168.50.10"
+    sshpass -p vagrant ssh vagrant@192.168.50.10 "mkdir -p \$HOME/.tkube/config"
+    sshpass -p vagrant scp config/deployment-rocky-single.yaml vagrant@192.168.50.10:/home/vagrant/.tkube/config/deployment.yaml
+    go run ../main.go install --remote 192.168.50.10
+    if [ "$keep_vagrant" -eq 0 ]; then
+      sudo N=1 IMAGE_NAME="bento/rockylinux-9" vagrant destroy -f
+      sudo rm -rf .vagrant
+    fi
+    cd - || exit
+    exit 0
+    ;;
+  rocky9-offline-single)
+    cd "$script_dir" || exit
+    if [ "$skip_vagrant_up" -eq 0 ]; then
+      sudo N=1 vagrant destroy -f
+      sudo rm -rf .vagrant
+      sudo N=1 IMAGE_NAME="bento/rockylinux-9" vagrant up
+    fi
+    ssh_known_host "192.168.50.10"
+    sshpass -p vagrant ssh vagrant@192.168.50.10 "mkdir -p \$HOME/.tkube/config"
+    sshpass -p vagrant scp config/deployment-rocky-single.yaml vagrant@192.168.50.10:/home/vagrant/.tkube/config/deployment.yaml
+    sshpass -p vagrant scp disable-internet-access.sh vagrant@192.168.50.10:/home/vagrant/
+    sshpass -p vagrant ssh vagrant@192.168.50.10 "./disable-internet-access.sh"
+    sshpass -p vagrant ssh vagrant@192.168.50.10 "[ -d /etc/yum.repos.d ] && sudo mv /etc/yum.repos.d /etc/yum.repos.d.old && sudo mkdir /etc/yum.repos.d"
+    sshpass -p vagrant scp ../offline/output/rockylinux-9_kube-1.30.2_registry-${version}.iso vagrant@192.168.50.10:/home/vagrant/
+    go run ../main.go install --remote 192.168.50.10 --iso /home/vagrant/rockylinux-9_kube-1.30.2_registry-${version}.iso --debug
+    if [ "$keep_vagrant" -eq 0 ]; then
+      sudo N=1 vagrant destroy -f
+      sudo rm -rf .vagrant
+    fi
+    cd - || exit
+    exit 0
+    ;;
+  ubuntu22-offline) # ubuntu-22.04 kube-1.30.2
     cd "$script_dir" || exit
     if [ "$skip_vagrant_up" -eq 0 ]; then
       sudo N=3 vagrant destroy -f
@@ -136,7 +206,7 @@ case $test_no in
     cd - || exit
     exit 0
     ;;
-  4) # ubuntu-18.04 kube-1.18.3
+  ubuntu18-offline-kube18) # ubuntu-18.04 kube-1.18.3
     cd "$script_dir" || exit
     if [ "$skip_vagrant_up" -eq 0 ]; then
       sudo N=3 vagrant destroy -f
@@ -166,7 +236,7 @@ case $test_no in
     cd - || exit
     exit 0
     ;;
-  5) # centos-7.9 kube-1.30.2
+  centos7-offline) # centos-7.9 kube-1.30.2
     cd "$script_dir" || exit
     if [ "$skip_vagrant_up" -eq 0 ]; then
       sudo N=3 vagrant destroy -f
@@ -196,7 +266,7 @@ case $test_no in
     cd - || exit
     exit 0
     ;;
-  6)
+  ubuntu22-worker)
     cd "$script_dir" || exit
     if [ "$skip_vagrant_up" -eq 0 ]; then
       sudo N=4 vagrant destroy -f

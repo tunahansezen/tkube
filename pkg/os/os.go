@@ -22,6 +22,7 @@ import (
 
 var (
 	OS                   Type
+	InstallerType        Installer
 	RemoteNodeIP         net.IP
 	RemoteNode           *conn.Node
 	sudoersPrevExistsMap = make(map[string]bool) // ip: prevExist
@@ -32,6 +33,15 @@ type Type int
 const (
 	Ubuntu Type = iota
 	CentOS
+	Rocky
+)
+
+type Installer int
+
+const (
+	Apt Installer = iota
+	Yum
+	Dnf
 )
 
 func DetectOS() {
@@ -39,8 +49,13 @@ func DetectOS() {
 	osOutputLower := strings.ToLower(osOutput)
 	if strings.Contains(osOutputLower, "ubuntu") {
 		OS = Ubuntu
+		InstallerType = Apt
 	} else if strings.Contains(osOutputLower, "centos") {
 		OS = CentOS
+		InstallerType = Yum
+	} else if strings.Contains(osOutputLower, "rocky") {
+		OS = Rocky
+		InstallerType = Dnf
 	} else {
 		Exit(fmt.Sprintf("Unsupported OS: %s", osOutput), 1)
 	}
@@ -118,7 +133,8 @@ func RemoteRun(node *conn.Node, cmd string, silent bool) (string, error) {
 	}
 
 	err = session.Run(cmd)
-	if OS == CentOS && err != nil && strings.Contains(cmd, "check-update") && err.(*ssh.ExitError).ExitStatus() == 100 {
+	if (InstallerType == Yum || InstallerType == Dnf) && err != nil &&
+		strings.Contains(cmd, "check-update") && err.(*ssh.ExitError).ExitStatus() == 100 {
 		err = nil
 	}
 	var returnStr string
@@ -174,16 +190,16 @@ func AddGpgKey(url string, name string, ip net.IP) (path string) {
 		return ""
 	}
 	var dir string
-	if OS == Ubuntu {
+	if InstallerType == Apt {
 		dir = "/etc/apt/keyrings"
-	} else if OS == CentOS {
+	} else if InstallerType == Yum || InstallerType == Dnf {
 		dir = "/etc/pki/rpm-gpg"
 	}
 	RunCommandOn(fmt.Sprintf("sudo mkdir -p %s", dir), ip, true)
 	path = fmt.Sprintf("%s/%s.gpg", dir, name)
-	if OS == Ubuntu {
+	if InstallerType == Apt {
 		RunCommandOn(fmt.Sprintf("curl -fsSL %s | sudo gpg --dearmor --yes -o %s", url, path), ip, true)
-	} else if OS == CentOS {
+	} else if InstallerType == Yum || InstallerType == Dnf {
 		RunCommandOn(fmt.Sprintf("curl -fsSL %s | sudo tee %s >/dev/null", url, path), ip, true)
 		RunCommandOn(fmt.Sprintf("sudo rpm --import %s", path), ip, true)
 	}
@@ -191,7 +207,7 @@ func AddGpgKey(url string, name string, ip net.IP) (path string) {
 }
 
 func AddRepository(name, shortname, repoFileName, address, keyPath string, ip net.IP) {
-	if OS == Ubuntu {
+	if InstallerType == Apt {
 		var keyPart string
 		if keyPath == "" {
 			keyPart = " trusted=yes"
@@ -200,7 +216,7 @@ func AddRepository(name, shortname, repoFileName, address, keyPath string, ip ne
 		}
 		RunCommandOn(fmt.Sprintf("echo \"deb [arch=amd64 %s] %s\" | sudo tee /etc/apt/sources.list.d/%s.list",
 			keyPart, address, repoFileName), ip, true)
-	} else if OS == CentOS {
+	} else if InstallerType == Yum || InstallerType == Dnf {
 		var gpgCheck string
 		var gpgKey string
 		if keyPath == "" {
@@ -220,10 +236,12 @@ func AddRepository(name, shortname, repoFileName, address, keyPath string, ip ne
 func UpdateRepos(ip net.IP) {
 	util.StartSpinner(fmt.Sprintf("Updating repos on \"%s\"", ip))
 	var cmd string
-	if OS == Ubuntu {
+	if InstallerType == Apt {
 		cmd = "sudo apt-get update -y"
-	} else if OS == CentOS {
+	} else if InstallerType == Yum {
 		cmd = "sudo yum check-update -y; sudo yum makecache fast -y"
+	} else if InstallerType == Dnf {
+		cmd = "sudo dnf check-update -y; sudo dnf makecache --refresh"
 	}
 	RunCommandOn(cmd, ip, true)
 	util.StopSpinner("", logsymbols.Success)
@@ -231,9 +249,9 @@ func UpdateRepos(ip net.IP) {
 
 func RemoveRelatedRepoFiles(name string, ip net.IP) {
 	var cmd string
-	if OS == Ubuntu {
+	if InstallerType == Apt {
 		cmd = "sudo rm -f /etc/apt/sources.list.d/%s*.list"
-	} else if OS == CentOS {
+	} else if InstallerType == Yum || InstallerType == Dnf {
 		cmd = "sudo rm -f /etc/yum.repos.d/%s*.repo"
 	}
 	RunCommandOn(fmt.Sprintf(cmd, name), ip, true)
@@ -244,15 +262,17 @@ func RemovePackage(p string, ip net.IP) {
 	if installed {
 		util.StartSpinner(fmt.Sprintf("Removing %s package on \"%s\"", p, ip))
 		var cmd string
-		if OS == Ubuntu {
+		if InstallerType == Apt {
 			cmd = "sudo apt-get purge -y %s --allow-change-held-packages"
-		} else if OS == CentOS {
+		} else if InstallerType == Yum {
 			cmd = "sudo yum remove -y %s"
+		} else if InstallerType == Dnf {
+			cmd = "sudo dnf remove -y %s"
 		}
 		RunCommandOn(fmt.Sprintf(cmd, p), ip, true)
-		if OS == Ubuntu {
+		if InstallerType == Apt {
 			cmd = "sudo dpkg -P %s"
-		} else if OS == CentOS {
+		} else if InstallerType == Yum || InstallerType == Dnf {
 			cmd = "sudo rpm -e --nodeps %s || true"
 		}
 		RunCommandOn(fmt.Sprintf(cmd, p), ip, true)
@@ -277,13 +297,17 @@ func InstallPackage(ps string, ip net.IP) {
 			}
 			var cmd string
 			var pkgVerCombineChar string
-			if OS == Ubuntu {
+			if InstallerType == Apt {
 				pkgVerCombineChar = "="
 				cmd = "sudo apt list -a %s 2>/dev/null | cut -d '[' -f1 | grep %s" +
 					" | head -1 | xargs | cut -d ' ' -f2"
-			} else if OS == CentOS {
+			} else if InstallerType == Yum {
 				pkgVerCombineChar = "-"
 				cmd = "sudo yum list %s --showduplicates 2>/dev/null | grep %s" +
+					" | tail -1 | xargs | cut -d ' ' -f2 | cut -d ':' -f2 | cut -d '-' -f1"
+			} else if InstallerType == Dnf {
+				pkgVerCombineChar = "-"
+				cmd = "sudo dnf list %s --showduplicates 2>/dev/null | grep %s" +
 					" | tail -1 | xargs | cut -d ' ' -f2 | cut -d ':' -f2 | cut -d '-' -f1"
 			}
 			exactVer := RunCommandOn(fmt.Sprintf(cmd, p, v), ip, true)
@@ -304,10 +328,12 @@ func InstallPackage(ps string, ip net.IP) {
 			}
 		} else {
 			var cmd string
-			if OS == Ubuntu {
+			if InstallerType == Apt {
 				cmd = "sudo apt list -a %s 2>/dev/null | grep installed | wc -l"
-			} else if OS == CentOS {
+			} else if InstallerType == Yum {
 				cmd = "sudo yum list installed 2>/dev/null | grep ^%s | wc -l"
+			} else if InstallerType == Dnf {
+				cmd = "sudo dnf list installed 2>/dev/null | grep ^%s | wc -l"
 			}
 			installed := RunCommandOn(fmt.Sprintf(cmd, p), ip, true) == "1"
 			if installed {
@@ -319,22 +345,26 @@ func InstallPackage(ps string, ip net.IP) {
 	}
 	var cmd string
 	if len(pCombined) > 0 {
-		if OS == Ubuntu {
+		if InstallerType == Apt {
 			cmd = "sudo apt-get install -f -y --allow-unauthenticated --allow-downgrades " +
 				"-o DPkg::Options::=\"--force-confnew\" %s"
-		} else if OS == CentOS {
+		} else if InstallerType == Yum {
 			cmd = "sudo yum install -y --setopt=obsoletes=0 %s"
+		} else if InstallerType == Dnf {
+			cmd = "sudo dnf install -y --setopt=obsoletes=0 %s"
 		}
 		util.StartSpinner(fmt.Sprintf("Installing \"%s\" on \"%s\"", strings.Join(pCombined, " "), ip))
 		RunCommandOn(fmt.Sprintf(cmd, strings.Join(pCombined, " ")), ip, true)
 		util.StopSpinner("", logsymbols.Success)
 	}
 	if len(pCombinedDowngraded) > 0 {
-		if OS == Ubuntu {
+		if InstallerType == Apt {
 			cmd = "sudo apt-get install -f -y --allow-unauthenticated --allow-downgrades " +
 				"-o DPkg::Options::=\"--force-confnew\" %s"
-		} else if OS == CentOS {
+		} else if InstallerType == Yum {
 			cmd = "sudo yum downgrade -y --setopt=obsoletes=0 %s"
+		} else if InstallerType == Dnf {
+			cmd = "sudo dnf downgrade -y --setopt=obsoletes=0 %s"
 		}
 		util.StartSpinner(fmt.Sprintf("Downgrading \"%s\" on \"%s\"", strings.Join(pCombinedDowngraded, " "), ip))
 		RunCommandOn(fmt.Sprintf(cmd, strings.Join(pCombinedDowngraded, " ")), ip, true)
@@ -364,10 +394,12 @@ func InstallPackageNoStart(ps string, ip net.IP) {
 
 func LockPackageVersion(pkg string, ip net.IP) {
 	var cmd string
-	if OS == Ubuntu {
+	if InstallerType == Apt {
 		cmd = "sudo apt-mark hold %s"
-	} else if OS == CentOS {
+	} else if InstallerType == Yum {
 		cmd = "sudo yum versionlock add %s"
+	} else if InstallerType == Dnf {
+		cmd = "sudo dnf versionlock add %s"
 	}
 	RunCommandOn(fmt.Sprintf(cmd, pkg), ip, true)
 }
@@ -592,12 +624,15 @@ func CommandExists(command string) bool {
 func PackageInstalledOn(p string, ip net.IP) (installed bool, version string) {
 	var cmd string
 	var versionIndex int
-	if OS == Ubuntu {
+	if InstallerType == Apt {
 		versionIndex = 2
 		cmd = "dpkg --list %s | tail -n 1"
-	} else if OS == CentOS {
+	} else if InstallerType == Yum {
 		versionIndex = 1
 		cmd = "sudo yum list installed 2>/dev/null | grep ^%s | head -1"
+	} else if InstallerType == Dnf {
+		versionIndex = 1
+		cmd = "sudo dnf list installed 2>/dev/null | grep ^%s | head -1"
 	}
 	returnStr := strings.TrimSpace(RunCommandOn(fmt.Sprintf(cmd, p), ip, true))
 	if returnStr == "" || strings.Contains(returnStr, "no packages") ||
