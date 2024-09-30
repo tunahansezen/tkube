@@ -164,7 +164,7 @@ func handleAuthMap() {
 		if len(authInfoSlice) != 3 {
 			os.Exit("Auth data invalid", 1)
 		} else {
-			err := conn.WriteSSHData(authInfoSlice[0], authInfoSlice[1], authInfoSlice[2])
+			err := conn.WriteSSHData(authInfoSlice[0], authInfoSlice[1], authInfoSlice[2], authInfoSlice[3])
 			if err != nil {
 				os.Exit(err.Error(), 1)
 			}

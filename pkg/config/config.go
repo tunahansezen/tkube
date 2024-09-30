@@ -126,7 +126,7 @@ func askDeploymentConfig() (err error) {
 	}
 	for _, node := range DeploymentCfg.GetKubeNodes() {
 		if node.SshUser != "" && node.SshPass != "" {
-			err = conn.WriteSSHData(node.IP.String(), node.SshUser, node.SshPass)
+			err = conn.WriteSSHData(node.IP.String(), node.SshUser, node.SshPass, node.SshPrivateKeyPath)
 			if err != nil {
 				return err
 			}

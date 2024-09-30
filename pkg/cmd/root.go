@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	conn "com.github.tunahansezen/tkube/pkg/connection"
 	"com.github.tunahansezen/tkube/pkg/core"
 	"com.github.tunahansezen/tkube/pkg/os"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 const (
@@ -42,8 +40,6 @@ func Execute(version string) {
 	RootCmd.InitDefaultVersionFlag()
 	RootCmd.Flag("version").Usage = "version for tkube"
 	//core.RunningUser, _ = os.RunCommand("whoami", true)
-	homedir, _ := os.UserHomeDir()
-	conn.KeyPath = strings.ReplaceAll(conn.KeyPath, "$HOME", homedir)
 	err := RootCmd.Execute()
 	if err != nil {
 		os.Exit(err.Error(), 1)

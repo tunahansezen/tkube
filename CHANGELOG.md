@@ -1,3 +1,8 @@
+## v1.3.3
+
+### Added or Changed
+- SSH auth handling redesigned
+
 ## v1.3.2
 
 ### Added or Changed

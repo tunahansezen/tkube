@@ -19,24 +19,18 @@ import (
 	"time"
 )
 
-const (
-	DefaultSSHKeyPath  = "$HOME/.ssh/id_rsa"
-	DefaultNodeSSHUser = "vagrant"
-	DefaultNodeSSHPass = "vagrant"
-)
-
 var (
 	homedir        string
 	sshDataFile    = fmt.Sprintf("%s/ssh", util.LocalDataPath)
-	KeyPath        string
 	sshConnections = make(map[string]*ssh.Client)
 	Nodes          = make(map[string]*Node)
 )
 
 type Node struct {
-	IP      net.IP
-	SSHUser string
-	SSHPass string
+	IP                net.IP
+	SSHUser           string
+	SSHPass           string
+	SSHPrivateKeyPath string
 }
 
 func (n Node) String() string {
@@ -121,104 +115,67 @@ func CreateSshConnection(node *Node) (*ssh.Client, error) {
 	var err error
 	var usedSSHUser string
 	var usedSSHPass string
+	var usedPrivateKeyPath string
 	var finalMsg string
-	dataSSHUser, dataSSHPass, err := CheckSSHDataForAddr(node.IP.String())
+	dataSSHUser, dataSSHPass, dataSSHPrivateKey, err := CheckSSHDataForAddr(node.IP.String())
 	if err != nil {
 		return nil, err
 	}
-	if node.SSHPass != "" {
-		auth = []ssh.AuthMethod{
-			ssh.Password(node.SSHPass),
-		}
-		connection, err = sshDial(node.SSHUser, auth, node.IP.String())
-		usedSSHUser = node.SSHUser
-		usedSSHPass = node.SSHPass
-	} else if dataSSHUser != "" {
+	if dataSSHUser != "" && (dataSSHPass != "" || dataSSHPrivateKey != "") { // read from saved data
 		usedSSHUser = dataSSHUser
 		if dataSSHPass != "" {
 			auth = []ssh.AuthMethod{
 				ssh.Password(dataSSHPass),
 			}
 			usedSSHPass = dataSSHPass
-			finalMsg = fmt.Sprintf("SSH connection successful for %s with user \"%s\" and saved pass",
-				node.IP, usedSSHUser)
 		} else {
-			auth = getKeyAuth()
-			finalMsg = fmt.Sprintf("SSH connection successful for %s with user \"%s\" and private key",
-				node.IP, usedSSHUser)
+			auth = getKeyAuth(dataSSHPrivateKey)
+			usedPrivateKeyPath = dataSSHPrivateKey
 		}
 		connection, err = sshDial(dataSSHUser, auth, node.IP.String())
-	} else {
-		// default user + key
-		tryUser := node.SSHUser
-		if tryUser == "" {
-			tryUser = DefaultNodeSSHUser
-		}
-		connection, err = sshDial(tryUser, getKeyAuth(), node.IP.String())
-		if err != nil {
+	} else if node.SSHUser != "" && (node.SSHPass != "" || node.SSHPrivateKeyPath != "") { // read from config
+		usedSSHUser = node.SSHUser
+		if node.SSHPass != "" {
 			auth = []ssh.AuthMethod{
-				ssh.Password(DefaultNodeSSHPass),
+				ssh.Password(node.SSHPass),
 			}
-			connection, err = sshDial(tryUser, auth, node.IP.String())
-			if err != nil {
-				if node.SSHUser == "" {
-					usedSSHUser, err = util.AskString(fmt.Sprintf("Please enter SSH user for %s", node.IP), false,
-						util.CommonValidator)
-					if err != nil {
-						return nil, err
-					}
-				} else {
-					usedSSHUser = node.SSHUser
-				}
-				if usedSSHUser != tryUser {
-					connection, err = sshDial(usedSSHUser, getKeyAuth(), node.IP.String())
-					if err != nil {
-						usedSSHPass, err = util.AskString(fmt.Sprintf("Please enter SSH pass for %s", node.IP), true,
-							util.CommonValidator)
-						if err != nil {
-							return nil, err
-						}
-						if usedSSHPass != DefaultNodeSSHPass {
-							auth = []ssh.AuthMethod{
-								ssh.Password(usedSSHPass),
-							}
-							connection, err = sshDial(usedSSHUser, auth, node.IP.String())
-							if err == nil {
-								finalMsg = fmt.Sprintf("SSH connection successful for %s with user \"%s\" and "+
-									"user input pass", node.IP, usedSSHUser)
-							}
-						}
-					} else {
-						finalMsg = fmt.Sprintf("SSH connection successful for %s with user \"%s\" and private key",
-							node.IP, usedSSHUser)
-					}
-				} else {
-					usedSSHPass, err = util.AskString(fmt.Sprintf("Please enter SSH pass for %s", node.IP), true,
-						util.CommonValidator)
-					if err != nil {
-						return nil, err
-					}
-					if usedSSHPass != DefaultNodeSSHPass {
-						auth = []ssh.AuthMethod{
-							ssh.Password(usedSSHPass),
-						}
-						connection, err = sshDial(usedSSHUser, auth, node.IP.String())
-					}
-					if err == nil {
-						finalMsg = fmt.Sprintf("SSH connection successful for %s with user \"%s\" and user input pass",
-							node.IP, usedSSHUser)
-					}
-				}
-			} else {
-				usedSSHUser = tryUser
-				usedSSHPass = DefaultNodeSSHPass
-				finalMsg = fmt.Sprintf("SSH connection successful for %s with user \"%s\" and default pass", node.IP,
-					tryUser)
-			}
+			usedSSHPass = node.SSHPass
 		} else {
-			usedSSHUser = tryUser
-			finalMsg = fmt.Sprintf("SSH connection successful for %s with user \"%s\" and private key",
-				node.IP, tryUser)
+			auth = getKeyAuth(node.SSHPrivateKeyPath)
+			usedPrivateKeyPath = node.SSHPrivateKeyPath
+		}
+		connection, err = sshDial(node.SSHUser, auth, node.IP.String())
+	} else { // ask credentials
+		usedSSHUser, err = util.AskString(fmt.Sprintf("Please enter SSH user for %s", node.IP), false,
+			util.CommonValidator)
+		if err != nil {
+			return nil, err
+		}
+		var authMethod string
+		authMethod, err = util.AskChoice("Which method want to use for SSH authentication?",
+			[]string{"password", "private-key"})
+		if err != nil {
+			return nil, err
+		} else if authMethod == "password" {
+			usedSSHPass, err = util.AskString(fmt.Sprintf("Please enter SSH pass for %s", node.IP), true,
+				util.CommonValidator)
+			if err != nil {
+				return nil, err
+			}
+			auth = []ssh.AuthMethod{
+				ssh.Password(usedSSHPass),
+			}
+		} else if authMethod == "private-key" {
+			usedPrivateKeyPath, err = util.AskString(
+				fmt.Sprintf("Please enter SSH private key path for %s", node.IP), false, util.PathValidator)
+			if err != nil {
+				return nil, err
+			}
+			auth = getKeyAuth(usedPrivateKeyPath)
+		}
+		connection, err = sshDial(usedSSHUser, auth, node.IP.String())
+		if err == nil {
+			finalMsg = fmt.Sprintf("SSH connection successful for %s with user \"%s\"", node.IP, usedSSHUser)
 		}
 	}
 
@@ -234,7 +191,7 @@ func CreateSshConnection(node *Node) (*ssh.Client, error) {
 	}
 	sshConnections[node.IP.String()] = connection
 	if dataSSHUser == "" && (usedSSHUser != "" || usedSSHPass != "") {
-		err = WriteSSHData(node.IP.String(), usedSSHUser, usedSSHPass)
+		err = WriteSSHData(node.IP.String(), usedSSHUser, usedSSHPass, usedPrivateKeyPath)
 		if err != nil {
 			return nil, err
 		}
@@ -246,7 +203,7 @@ func CreateSshConnection(node *Node) (*ssh.Client, error) {
 	return connection, nil
 }
 
-func WriteSSHData(addr string, sshUser string, sshPass string) error {
+func WriteSSHData(addr string, sshUser string, sshPass string, sshPrivateKeyPath string) error {
 	err := touchFile(sshDataFile)
 	if err != nil {
 		log.Debugf("Error occurred while creating connection data file: %s", sshDataFile)
@@ -267,6 +224,7 @@ func WriteSSHData(addr string, sshUser string, sshPass string) error {
 	d2 := make(map[string]string)
 	d2["sshUser"] = sshUser
 	d2["sshPass"] = sshPass
+	d2["sshPrivateKeyPath"] = sshPrivateKeyPath
 	data[addr] = d2
 	out, _ := yaml.Marshal(data)
 	out, err = enc.EncryptFile(out)
@@ -296,22 +254,23 @@ func touchFile(name string) error {
 	return file.Close()
 }
 
-func CheckSSHDataForAddr(addr string) (sshUser, sshPass string, err error) {
+func CheckSSHDataForAddr(addr string) (sshUser, sshPass, sshPrivateKeyPath string, err error) {
 	file, _ := os.ReadFile(sshDataFile)
 	file, err = enc.DecryptFile(file)
 	if err != nil {
 		log.Debugf("Error occurred while decrypting connection data file: %s", sshDataFile)
-		return "", "", err
+		return "", "", "", err
 	}
 	data := make(map[string]map[string]string)
 	err = yaml.Unmarshal(file, &data)
 	if err != nil {
 		log.Debugf("Error occurred while parsing connection data file: %s", sshDataFile)
-		return "", "", err
+		return "", "", "", err
 	}
 	sshUser = data[addr]["sshUser"]
 	sshPass = data[addr]["sshPass"]
-	return sshUser, sshPass, nil
+	sshPrivateKeyPath = data[addr]["sshPrivateKeyPath"]
+	return sshUser, sshPass, sshPrivateKeyPath, nil
 }
 
 func clearSSHDataForAddr(addr string) error {
@@ -342,8 +301,8 @@ func clearSSHDataForAddr(addr string) error {
 	return nil
 }
 
-func getKeyAuth() []ssh.AuthMethod {
-	pemBytes, err := os.ReadFile(KeyPath)
+func getKeyAuth(keyPath string) []ssh.AuthMethod {
+	pemBytes, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil
 	}

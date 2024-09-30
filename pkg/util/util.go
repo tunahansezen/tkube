@@ -63,6 +63,17 @@ var (
 		}
 		return nil
 	}
+	PathValidator = func(input string) error {
+		if len(input) < 1 {
+			return errors.New("need some input")
+		}
+		pattern := `^(/[^/\0]+)+$`
+		match, _ := regexp.MatchString(pattern, input)
+		if !match {
+			return errors.New("path is invalid")
+		}
+		return nil
+	}
 )
 
 func AskInt(msg string, mask bool, validate func(string) error) (int, error) {

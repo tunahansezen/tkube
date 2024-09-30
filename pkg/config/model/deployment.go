@@ -28,12 +28,13 @@ type KubeNodes struct {
 }
 
 type KubeNode struct {
-	Hostname  string `yaml:"hostname"`
-	IP        net.IP `yaml:"IP"`
-	Interface string `yaml:"interface"`
-	KubeType  string `yaml:"kubeType"`
-	SshUser   string `yaml:"sshUser"`
-	SshPass   string `yaml:"sshPass"`
+	Hostname          string `yaml:"hostname"`
+	IP                net.IP `yaml:"IP"`
+	Interface         string `yaml:"interface"`
+	KubeType          string `yaml:"kubeType"`
+	SshUser           string `yaml:"sshUser"`
+	SshPass           string `yaml:"sshPass"`
+	SshPrivateKeyPath string `yaml:"sshPrivateKeyPath"`
 }
 
 type CentOS struct {

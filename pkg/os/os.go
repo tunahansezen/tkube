@@ -502,12 +502,12 @@ func CreateFile(data []byte, dstFile string, ip net.IP) {
 		}
 		err = os.WriteFile(tempDst, data, os.FileMode(0666))
 		if err != nil {
-			log.Debugf("Error occurred while writing \"%s\" file", dstFile)
+			log.Debugf("Error occurred while writing \"%s\" file to \"%s\"", dstFile, tempDst)
 			Exit(err.Error(), 1)
 		}
 		_, err = localRun(fmt.Sprintf("sudo mv %s %s", tempDst, dstFile), true)
 		if err != nil {
-			log.Debugf("Error occurred while moving \"%s\" file", dstFile)
+			log.Debugf("Error occurred while moving \"%s\" file to \"%s\"", dstFile, tempDst)
 			Exit(err.Error(), 1)
 		}
 	} else {
@@ -518,12 +518,12 @@ func CreateFile(data []byte, dstFile string, ip net.IP) {
 		RunCommandOn(cmd, ip, true)
 		err := conn.SendFile(ip, bytes.NewReader(data), tempDst)
 		if err != nil {
-			log.Debugf("Error occurred while sending \"%s\" file to %s", dstFile, ip)
+			log.Debugf("Error occurred while sending \"%s\" file to \"%s\"@\"%s\"", dstFile, ip, tempDst)
 			Exit(err.Error(), 1)
 		}
 		_, err = runCommandOnReturnErr(fmt.Sprintf("sudo mv %s %s", tempDst, dstFile), ip, true, true)
 		if err != nil {
-			log.Debugf("Error occurred while moving \"%s\" file", dstFile)
+			log.Debugf("Error occurred while moving \"%s\" file to \"%s\"", dstFile, tempDst)
 			Exit(err.Error(), 1)
 		}
 	}
