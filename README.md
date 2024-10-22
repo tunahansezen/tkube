@@ -61,7 +61,7 @@ virtualbox: 7.0.20
 - [ ] CentOS versionlock delete before installation
 - [ ] Override registry if ISO installation
 - [ ] Rocky Linux support
-- [ ] Set log retention and size for kube>=1.24 from kubelet config
+- [x] Set log retention and size for kube>=1.24 from kubelet config
 - [ ] Set max pod count for cluster
 - [ ] Set fs.inotify.max_user_watches to enough value
 - [ ] Update containerd.io if older version installed

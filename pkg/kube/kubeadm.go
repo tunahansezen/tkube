@@ -11,6 +11,7 @@ import (
 	yamlv3 "gopkg.in/yaml.v3"
 	kubeApi "k8s.io/client-go/tools/clientcmd/api"
 	"net"
+	"strconv"
 	"strings"
 )
 
@@ -67,9 +68,11 @@ type localApiEndpoint struct {
 }
 
 type KubeletCfg struct {
-	ApiVersion   string `yaml:"apiVersion" json:"apiVersion"`
-	Kind         string `yaml:"kind" json:"kind"`
-	CGroupDriver string `yaml:"cgroupDriver" json:"cgroupDriver"`
+	ApiVersion           string `yaml:"apiVersion" json:"apiVersion"`
+	Kind                 string `yaml:"kind" json:"kind"`
+	CGroupDriver         string `yaml:"cgroupDriver" json:"cgroupDriver"`
+	ContainerLogMaxSize  string `yaml:"containerLogMaxSize" json:"containerLogMaxSize,omitempty"`
+	ContainerLogMaxFiles int    `yaml:"containerLogMaxFiles" json:"containerLogMaxFiles,omitempty"`
 }
 
 type KubeConfig struct {
@@ -109,7 +112,7 @@ func CreateCombinedKubeadmCfg(kubeVersion string, controlPlaneIP net.IP, adverti
 	kubeadmClusterCfg := createKubeadmClusterCfg(kubeVersion, controlPlaneIP, dc, multiMasterDeployment)
 	yamlEncoder.Encode(&kubeadmClusterCfg)
 	b.WriteString("\n")
-	kubeletCfg := createKubeadmKubeletCfg(dc)
+	kubeletCfg := createKubeadmKubeletCfg(kubeVersion, dc)
 	yamlEncoder.Encode(&kubeletCfg)
 	b.WriteString("\n")
 	return b.Bytes()
@@ -191,7 +194,7 @@ func createDefaultKubeadmInitCfg(kubeVersion string, advertiseIP net.IP,
 	return kic
 }
 
-func createKubeadmKubeletCfg(dc model.DeploymentConfig) (kc KubeletCfg) {
+func createKubeadmKubeletCfg(kubeVersion string, dc model.DeploymentConfig) (kc KubeletCfg) {
 	kc.ApiVersion = "kubelet.config.k8s.io/v1beta1"
 	kc.Kind = "KubeletConfiguration"
 	for _, opt := range dc.Docker.Daemon.ExecOpts {
@@ -201,6 +204,12 @@ func createKubeadmKubeletCfg(dc model.DeploymentConfig) (kc KubeletCfg) {
 	}
 	if kc.CGroupDriver == "" {
 		kc.CGroupDriver = "systemd"
+	}
+	kubeSemVer, _ := version.NewVersion(kubeVersion)
+	kube124Ver, _ := version.NewVersion("1.24")
+	if kubeSemVer.GreaterThanOrEqual(kube124Ver) {
+		kc.ContainerLogMaxFiles, _ = strconv.Atoi(dc.Docker.Daemon.LogOpts.MaxFile)
+		kc.ContainerLogMaxSize = strings.ReplaceAll(dc.Docker.Daemon.LogOpts.MaxSize, "m", "Mi")
 	}
 	return kc
 }
