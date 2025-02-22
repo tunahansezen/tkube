@@ -22,6 +22,7 @@ const (
 	fHelmVersion       = "helm"
 	fDockerPrune       = "docker-prune"
 	fIso               = "iso"
+	fSkipImageLoad     = "skip-image-load"
 )
 
 // RootCmd represents the base command when called without any subcommands
@@ -71,4 +72,6 @@ func init() {
 	RootCmd.PersistentFlags().BoolVarP(&core.DockerPrune, fDockerPrune, "", core.DefaultDockerPrune,
 		"prune all docker images and other data")
 	RootCmd.PersistentFlags().StringVarP(&core.IsoPath, fIso, "", "", "ISO file path for offline installation")
+	RootCmd.PersistentFlags().BoolVarP(&core.SkipImageLoad, fSkipImageLoad, "", core.DefaultSkipImageLoad,
+		"prune all docker images and other data")
 }

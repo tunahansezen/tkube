@@ -34,6 +34,7 @@ const (
 	DefaultCalicoVersion     = "auto"
 	DefaultHelmVersion       = "3.15.1"
 	DefaultDockerPrune       = false
+	DefaultSkipImageLoad     = false
 )
 
 var (
@@ -53,6 +54,7 @@ var (
 	helmUrl               string
 	DockerPrune           bool
 	multiMasterDeployment bool
+	SkipImageLoad         bool
 )
 
 func Install(nodes model.KubeNodes) {
@@ -129,7 +131,7 @@ func Install(nodes model.KubeNodes) {
 	if cfg.DeploymentCfg.Keepalived.Enabled {
 		installKeepAliveD(nodes)
 	}
-	if IsoPath != "" {
+	if IsoPath != "" && !SkipImageLoad {
 		kubeSemVer, _ := version.NewVersion(KubeVersion)
 		kube124Ver, _ := version.NewVersion("1.24")
 		for _, node := range nodes.Nodes {
@@ -530,7 +532,7 @@ func installEtcd(nodes model.KubeNodes) {
 		etcdExists := os.CommandExists("etcd")
 		etcdCtlExists := os.CommandExists("etcdctl")
 		if etcdExists && etcdCtlExists {
-			installedEtcdVersion := os.RunCommand("etcd --version | head -1 | cut -d: -f2 | xargs", true)
+			installedEtcdVersion := os.RunCommandOn("etcd --version | head -1 | cut -d: -f2 | xargs", kubeNode.IP, true)
 			if installedEtcdVersion == EtcdVersion {
 				skipInstallEtcd = append(skipInstallEtcd, kubeNode.IP.String())
 				fmt.Printf("etcd with \"%s\" version already installed on \"%s\"\n", EtcdVersion, kubeNode.Hostname)
@@ -684,7 +686,8 @@ func installHelm(nodes model.KubeNodes) {
 	for i, kubeNode := range nodes.GetMasterKubeNodes() {
 		helmExists := os.CommandExists("helm")
 		if helmExists {
-			installedHelmVersion := os.RunCommand("helm version --short | cut -d+ -f1 | cut -dv -f2 | xargs", true)
+			installedHelmVersion := os.RunCommandOn("helm version --short | cut -d+ -f1 | cut -dv -f2 | xargs",
+				kubeNode.IP, true)
 			if installedHelmVersion == HelmVersion {
 				skipInstallHelm = append(skipInstallHelm, kubeNode.IP.String())
 				fmt.Printf("helm with \"%s\" version already installed on \"%s\"\n", HelmVersion, kubeNode.Hostname)
