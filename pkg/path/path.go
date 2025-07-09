@@ -9,11 +9,12 @@ import (
 )
 
 var (
-	homePath          string
-	tkubeMainDir      string
-	tkubeCfgDir       string
-	tkubeResourcesDir string
-	tkubeTmpDir       string
+	homePath                  string
+	tkubeMainDir              string
+	tkubeCfgDir               string
+	tkubeResourcesDir         string
+	tkubeTmpDir               string
+	tkubeEtcdRecoveryCertsDir string
 )
 
 func GetTKubeMainDir() string {
@@ -38,10 +39,15 @@ func GetTKubeIsoFilesDir(ip net.IP) string {
 		constant.CfgRootFolder, constant.IsoFilesFolder))
 }
 
+func GetTKubeEtcdRecoveryCertsDir() string {
+	return tkubeEtcdRecoveryCertsDir
+}
+
 func CalculatePaths() {
 	homePath = os.RunCommand("echo $HOME", true)
 	tkubeMainDir = fmt.Sprintf("%s/%s", homePath, constant.CfgRootFolder)
 	tkubeCfgDir = fmt.Sprintf("%s/%s", tkubeMainDir, constant.CfgFolder)
 	tkubeResourcesDir = fmt.Sprintf("%s/%s", tkubeMainDir, constant.ResourcesFolder)
 	tkubeTmpDir = fmt.Sprintf("%s/%s", tkubeMainDir, constant.TmpFolder)
+	tkubeEtcdRecoveryCertsDir = fmt.Sprintf("%s/%s", tkubeMainDir, constant.EtcdRecoveryCertFolder)
 }

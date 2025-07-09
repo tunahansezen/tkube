@@ -2,6 +2,7 @@ package kube
 
 import (
 	"com.github.tunahansezen/tkube/pkg/os"
+	"com.github.tunahansezen/tkube/pkg/path"
 	"com.github.tunahansezen/tkube/pkg/util"
 	"fmt"
 	"github.com/guumaster/logsymbols"
@@ -54,6 +55,14 @@ func CreateCertKey(kubeVersion string, ip net.IP) (certKey string) {
 	} else {
 		certKey = os.RunCommandOn("sudo kubeadm alpha certs certificate-key", ip, true)
 	}
+	return certKey
+}
+
+func UploadCerts(kubeVersion string, ip net.IP) (certKey string) {
+	certKeyOutput := os.RunCommandOn(
+		fmt.Sprintf("sudo kubeadm init phase upload-certs --upload-certs --config %s/kubeadm-config.yaml",
+			path.GetTKubeCfgDir()), ip, true)
+	certKey = util.GetLastNonEmptyLine(certKeyOutput)
 	return certKey
 }
 

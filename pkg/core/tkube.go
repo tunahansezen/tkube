@@ -57,15 +57,20 @@ var (
 	SkipImageLoad         bool
 )
 
-func Install(nodes model.KubeNodes) {
+func Install(nodes model.KubeNodes, masterRecovery bool) {
 	if nodes.IncludeMaster() {
-		switch len(nodes.GetMasterKubeNodes()) {
-		case 1:
-			fmt.Println("Single-master deployment started")
-			multiMasterDeployment = false
-		default:
-			fmt.Println("Multi-master deployment started")
+		if masterRecovery {
+			fmt.Println("Master-recovery started")
 			multiMasterDeployment = true
+		} else {
+			switch len(nodes.GetMasterKubeNodes()) {
+			case 1:
+				fmt.Println("Single-master deployment started")
+				multiMasterDeployment = false
+			default:
+				fmt.Println("Multi-master deployment started")
+				multiMasterDeployment = true
+			}
 		}
 	}
 	handleAuthMap()
@@ -119,7 +124,7 @@ func Install(nodes model.KubeNodes) {
 	installContainerd(nodes)
 	installKubePackages(nodes, kubeInstReqMap)
 	if multiMasterDeployment {
-		generateAndDistributeKubeAndEtcdCerts(nodes)
+		generateAndDistributeKubeAndEtcdCerts(nodes, masterRecovery)
 		installEtcd(nodes)
 	} else {
 		for _, kubeNode := range nodes.GetMasterKubeNodes() {
@@ -154,7 +159,7 @@ func Install(nodes model.KubeNodes) {
 			util.StopSpinner("", logsymbols.Success)
 		}
 	}
-	initKubernetes(nodes)
+	initKubernetes(nodes, masterRecovery)
 }
 
 func handleAuthMap() {
@@ -456,20 +461,48 @@ func installKubePackages(nodes model.KubeNodes, installationRequired map[string]
 	}
 }
 
-func generateAndDistributeKubeAndEtcdCerts(nodes model.KubeNodes) {
+func generateAndDistributeKubeAndEtcdCerts(nodes model.KubeNodes, masterRecovery bool) {
 	if !nodes.IncludeMaster() {
 		return
 	}
-	util.StartSpinner("Generating kube and etcd certs")
-	caCert, _, caKey, err := cfssl.New(model.DefaultKubernetesCSR())
-	if err != nil {
-		os.Exit(err.Error(), 1)
+	var caCert []byte
+	var caKey []byte
+	var etcdCert []byte
+	var etcdKey []byte
+	var err error
+	if masterRecovery {
+		etcdRecoveryCertsDir := path.GetTKubeEtcdRecoveryCertsDir()
+		recCaCrtPath := fmt.Sprintf("%s", etcdRecoveryCertsDir+"/ca.crt")
+		caCert, err = os.ReadFile(recCaCrtPath, nodes.Nodes[0].IP)
+		if err != nil {
+			os.Exit(fmt.Sprintf("Error occurred while reading \"%s\" file", recCaCrtPath), 1)
+		}
+		recCaKeyPath := fmt.Sprintf("%s", etcdRecoveryCertsDir+"/ca.key")
+		caKey, err = os.ReadFile(recCaKeyPath, nodes.Nodes[0].IP)
+		if err != nil {
+			os.Exit(fmt.Sprintf("Error occurred while reading \"%s\" file", recCaKeyPath), 1)
+		}
+		recEtcdCrtPath := fmt.Sprintf("%s", etcdRecoveryCertsDir+"/apiserver-etcd-client.crt")
+		etcdCert, err = os.ReadFile(recEtcdCrtPath, nodes.Nodes[0].IP)
+		if err != nil {
+			os.Exit(fmt.Sprintf("Error occurred while reading \"%s\" file", recEtcdCrtPath), 1)
+		}
+		recEtcdKeyPath := fmt.Sprintf("%s", etcdRecoveryCertsDir+"/apiserver-etcd-client.key")
+		etcdKey, err = os.ReadFile(recEtcdKeyPath, nodes.Nodes[0].IP)
+		if err != nil {
+			os.Exit(fmt.Sprintf("Error occurred while reading \"%s\" file", recEtcdKeyPath), 1)
+		}
+	} else {
+		util.StartSpinner("Generating kube and etcd certs")
+		caCert, _, caKey, err = cfssl.New(model.DefaultKubernetesCSR())
+		if err != nil {
+			os.Exit(err.Error(), 1)
+		}
+		etcdCert, _, etcdKey, err = createEtcdCerts(caCert, caKey)
+		if err != nil {
+			os.Exit(err.Error(), 1)
+		}
 	}
-	etcdCert, _, etcdKey, err := createEtcdCerts(caCert, caKey)
-	if err != nil {
-		os.Exit(err.Error(), 1)
-	}
-
 	// config sh
 	for _, kubeNode := range nodes.GetMasterKubeNodes() {
 		os.RunCommandOn(fmt.Sprintf("sudo mkdir -p %s", constant.EtcdPkiFolder), kubeNode.IP, true)
@@ -615,7 +648,7 @@ func installEtcd(nodes model.KubeNodes) {
 		os.Exit(err.Error(), 1)
 	}
 	var clusterAddresses []string
-	for _, k := range nodes.GetMasterKubeNodes() {
+	for _, k := range cfg.DeploymentCfg.GetMasterKubeNodes() {
 		clusterAddresses = append(clusterAddresses, fmt.Sprintf("%s=https://%s:2380", k.Hostname, k.IP))
 	}
 	for _, kubeNode := range nodes.GetMasterKubeNodes() {
@@ -639,7 +672,7 @@ func installEtcd(nodes model.KubeNodes) {
 	util.StartSpinner("Checking etcd service running well on master nodes")
 	time.Sleep(5 * time.Second)
 	var endpoints []string
-	for _, k := range nodes.GetMasterKubeNodes() {
+	for _, k := range cfg.DeploymentCfg.GetMasterKubeNodes() {
 		endpoints = append(endpoints, fmt.Sprintf("https://%s:2379", k.IP))
 	}
 	allEtcdStarted := false
@@ -781,10 +814,19 @@ func installKeepAliveD(nodes model.KubeNodes) {
 	}
 }
 
-func initKubernetes(nodes model.KubeNodes) {
+func initKubernetes(nodes model.KubeNodes, masterRecovery bool) {
 	var firstMasterNode *model.KubeNode
 	var certKey string
-	if nodes.IncludeMaster() {
+	if masterRecovery {
+		var mainMasterIP net.IP
+		if nodes.Nodes[0].Hostname == cfg.DeploymentCfg.Nodes[0].Hostname {
+			mainMasterIP = cfg.DeploymentCfg.Nodes[1].IP
+		} else {
+			mainMasterIP = cfg.DeploymentCfg.Nodes[0].IP
+		}
+		certKey = kube.UploadCerts(KubeVersion, mainMasterIP)
+	}
+	if nodes.IncludeMaster() && !masterRecovery {
 		firstMasterNode = &nodes.GetMasterKubeNodes()[0]
 		util.StartSpinner(fmt.Sprintf("Initializing kubernetes on \"%s\"", firstMasterNode.Hostname))
 		certKey = kube.CreateCertKey(KubeVersion, firstMasterNode.IP)
@@ -849,7 +891,7 @@ func initKubernetes(nodes model.KubeNodes) {
 	}
 	kube.WaitUntilPodsRunningWithName(kubeSystemPodNames(firstMasterNode.Hostname), "kube-system")
 	joinAsMasterCmd := ""
-	if len(nodes.GetMasterKubeNodes()) > 1 {
+	if len(nodes.GetMasterKubeNodes()) > 1 || masterRecovery {
 		if certKey == "" {
 			certKey = os.RunCommandOn(
 				fmt.Sprintf("cat %s/kubeadm-config.yaml | grep certificateKey | awk -F ':' '{print $2}' | xargs",
@@ -860,7 +902,7 @@ func initKubernetes(nodes model.KubeNodes) {
 			firstMasterNode.IP, true)
 	}
 	for _, masterNode := range nodes.GetMasterKubeNodes() {
-		if masterNode.IP.Equal(firstMasterNode.IP) {
+		if !masterRecovery && masterNode.IP.Equal(firstMasterNode.IP) {
 			continue
 		}
 		kubeConf := "net.bridge.bridge-nf-call-ip6tables = 1\nnet.bridge.bridge-nf-call-iptables = 1\nnet.ipv4.ip_forward = 1\n"

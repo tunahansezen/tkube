@@ -77,6 +77,7 @@ rpm: ## Creates RPM file
 	@echo "Release: $(RELEASE)" >> ${SPEC_FILE}
 	@echo "Summary: $(DESCRIPTION)" >> ${SPEC_FILE}
 	@echo "License: $(LICENSE)" >> ${SPEC_FILE}
+	@echo "BuildArch: x86_64" >> ${SPEC_FILE}
 	@echo "Source0: $(CMD_NAME)-$(VERSION_SHORT_RPM).tar.gz" >> ${SPEC_FILE}
 	@echo "" >> ${SPEC_FILE}
 	@echo "%description" >> ${SPEC_FILE}
@@ -91,12 +92,12 @@ rpm: ## Creates RPM file
 	@echo "cp -a ${CMD_NAME} %{buildroot}/usr/bin/" >> ${SPEC_FILE}
 	@echo "" >> ${SPEC_FILE}
 	@echo "%files" >> ${SPEC_FILE}
-	@echo "%{_bindir}/${CMD_NAME}" >> ${SPEC_FILE}
+	@echo "/usr/bin/${CMD_NAME}" >> ${SPEC_FILE}
 	@echo "" >> ${SPEC_FILE}
 	@echo "%changelog" >> ${SPEC_FILE}
 	@echo "* $(shell LANG=en_EN date '+%a %b %d %Y') ${USER} <${MAIL}> - ${VERSION_SHORT}-${RELEASE}" >> ${SPEC_FILE}
 	@echo "- Initial RPM release" >> ${SPEC_FILE}
-	@${GO} build ${LDFLAGS} -o ${CMD_NAME}
+	@GOOS=linux GOARCH=amd64 ${GO} build ${LDFLAGS} -o ${CMD_NAME}
 	@mkdir -p "${RPM_DIR}/BUILD/$(CMD_NAME)-$(VERSION_SHORT_RPM)/"
 	@cp $(CMD_NAME) "${RPM_DIR}/BUILD/$(CMD_NAME)-$(VERSION_SHORT_RPM)/"
 	@tar czf $(RPM_DIR)/SOURCES/$(CMD_NAME)-$(VERSION_SHORT_RPM).tar.gz -C "${RPM_DIR}/BUILD" "$(CMD_NAME)-$(VERSION_SHORT_RPM)"
