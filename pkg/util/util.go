@@ -177,3 +177,14 @@ func RenderTemplate(tmpl *template.Template, variables map[string]interface{}) (
 	}
 	return buf.String(), nil
 }
+
+func GetLastNonEmptyLine(s string) string {
+	lines := strings.Split(s, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line != "" {
+			return line
+		}
+	}
+	return ""
+}

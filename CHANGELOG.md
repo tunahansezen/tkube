@@ -1,3 +1,10 @@
+## v1.3.5
+
+### Added or Changed
+- Master node recovery
+
+## v1.3.4
+
 ### Added or Changed
 - Set log retention and size for kube>=1.24 from kubelet config
 

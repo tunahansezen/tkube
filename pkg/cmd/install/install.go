@@ -31,7 +31,7 @@ var Cmd = &cobra.Command{
 		}
 		var nodes model.KubeNodes
 		nodes.Nodes = kubeNodes
-		core.Install(nodes)
+		core.Install(nodes, false)
 	},
 }
 

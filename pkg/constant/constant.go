@@ -12,6 +12,7 @@ const (
 	EtcdCaKeyPath                 = "/etc/etcd/pki/ca.key"
 	EtcdClientKeyPath             = "/etc/etcd/pki/apiserver-etcd-client.key"
 	EtcdClientCertPath            = "/etc/etcd/pki/apiserver-etcd-client.crt"
+	EtcdRecoveryCertFolder        = "recovery/etcd-certs"
 	DeploymentCfgName             = "deployment"
 	DefaultCfgType                = "yaml"
 	DefaultContainerdSandboxImage = "pause:3.9"

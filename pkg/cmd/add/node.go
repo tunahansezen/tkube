@@ -32,7 +32,7 @@ var nodeCmd = &cobra.Command{
 		}
 		var nodes model.KubeNodes
 		nodes.Nodes = []model.KubeNode{*node}
-		core.Install(nodes)
+		core.Install(nodes, false)
 	},
 }
 
