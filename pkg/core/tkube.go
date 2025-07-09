@@ -889,7 +889,9 @@ func initKubernetes(nodes model.KubeNodes, masterRecovery bool) {
 	for _, env := range cfg.DeploymentCfg.Kubernetes.Calico.EnvVars {
 		kube.SetEnv("daemonset/calico-node", "kube-system", env)
 	}
-	kube.WaitUntilPodsRunningWithName(kubeSystemPodNames(firstMasterNode.Hostname), "kube-system")
+	if !masterRecovery {
+		kube.WaitUntilPodsRunningWithName(kubeSystemPodNames(firstMasterNode.Hostname), "kube-system")
+	}
 	joinAsMasterCmd := ""
 	if len(nodes.GetMasterKubeNodes()) > 1 || masterRecovery {
 		if certKey == "" {
