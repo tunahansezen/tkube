@@ -2,19 +2,20 @@ package config
 
 import (
 	"bytes"
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
+
 	"com.github.tunahansezen/tkube/pkg/config/model"
 	conn "com.github.tunahansezen/tkube/pkg/connection"
 	"com.github.tunahansezen/tkube/pkg/constant"
 	"com.github.tunahansezen/tkube/pkg/os"
 	"com.github.tunahansezen/tkube/pkg/path"
 	"com.github.tunahansezen/tkube/pkg/util"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
-	"net"
-	"strconv"
-	"strings"
 )
 
 var (
@@ -234,7 +235,7 @@ func askDeploymentConfig() (err error) {
 			var insecureRegistry string
 			// todo check valid url
 			insecureRegistry, err = util.AskString(fmt.Sprintf("%s insecure registry", util.GetOrdinalNumber(index)),
-				false, util.CommonValidator)
+				false, util.AddressValidator)
 			if err != nil {
 				return err
 			}
@@ -264,7 +265,7 @@ func askDeploymentConfig() (err error) {
 			var registryMirror string
 			// todo check valid url
 			registryMirror, err = util.AskString(fmt.Sprintf("%s registry mirror", util.GetOrdinalNumber(index)),
-				false, util.CommonValidator)
+				false, util.AddressValidator)
 			if err != nil {
 				return err
 			}

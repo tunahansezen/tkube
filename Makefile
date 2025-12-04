@@ -60,7 +60,7 @@ deb: ## Creates debian file
 	@echo "Architecture: $(ARCHITECTURE)" >> ${CONTROL_FILE}
 	@echo "Homepage: $(HOMEPAGE)" >> ${CONTROL_FILE}
 	@echo "Description: $(VERSION)" >> ${CONTROL_FILE}
-	@${GO} build ${LDFLAGS} -o ${CMD_NAME}
+	@GOOS=linux GOARCH=amd64 ${GO} build ${LDFLAGS} -o ${CMD_NAME}
 	@mkdir -p ${BIN_DIR}
 	@mv ${CMD_NAME} ${BIN_DIR}
 	@chmod a+x "${BIN_DIR}/${CMD_NAME}"
@@ -77,7 +77,7 @@ rpm: ## Creates RPM file
 	@echo "Release: $(RELEASE)" >> ${SPEC_FILE}
 	@echo "Summary: $(DESCRIPTION)" >> ${SPEC_FILE}
 	@echo "License: $(LICENSE)" >> ${SPEC_FILE}
-	@echo "BuildArch: x86_64" >> ${SPEC_FILE}
+	@echo "BuildArch: noarch" >> ${SPEC_FILE}
 	@echo "Source0: $(CMD_NAME)-$(VERSION_SHORT_RPM).tar.gz" >> ${SPEC_FILE}
 	@echo "" >> ${SPEC_FILE}
 	@echo "%description" >> ${SPEC_FILE}
@@ -102,7 +102,7 @@ rpm: ## Creates RPM file
 	@cp $(CMD_NAME) "${RPM_DIR}/BUILD/$(CMD_NAME)-$(VERSION_SHORT_RPM)/"
 	@tar czf $(RPM_DIR)/SOURCES/$(CMD_NAME)-$(VERSION_SHORT_RPM).tar.gz -C "${RPM_DIR}/BUILD" "$(CMD_NAME)-$(VERSION_SHORT_RPM)"
 	@rpmbuild --define "_topdir ${RPM_DIR}" -bb ${SPEC_FILE}
-	@mv "${RPM_DIR}/RPMS/x86_64/"*.rpm $(CMD_NAME)_$(VERSION_SHORT)-$(RELEASE_NUMBER).x86_64.rpm
+	@mv "${RPM_DIR}/RPMS/noarch/"*.rpm $(CMD_NAME)_$(VERSION_SHORT)-$(RELEASE_NUMBER).x86_64.rpm
 	@rm -rf "${RPM_DIR}"
 
 upload: check-vars deb ## Uploads created deb file to apt repository

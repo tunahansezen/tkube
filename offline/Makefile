@@ -17,21 +17,22 @@ DEFAULT_YUM_KUBE_REPO_KEY       = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJO
 KUBE_REPO_ADDRESS                  =
 DEFAULT_APT_KUBE_REPO_ADDRESS   = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_VERSION}/deb/ /
 DEFAULT_YUM_KUBE_REPO_ADDRESS   = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_VERSION}/rpm/
-ETCD_VERSION                       = 3.5.14
+ETCD_VERSION                       = 3.5.25
 ETCD_URL                           = https://github.com/coreos/etcd/releases/download/v${ETCD_VERSION}/etcd-v${ETCD_VERSION}-linux-${TARGET_ARCH}.tar.gz
-HELM_VERSION                       = 3.13.3
+HELM_VERSION                       = 3.19.2
 HELM_URL                           = https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGET_ARCH}.tar.gz
 EXTRA_DOCKER_BUILD_ARGS            =
 
 DEST_PATH 			     = ./output
 OS_ARR                   = ubuntu centos rockylinux
-ubuntu_VERSIONS          = 18.04 20.04 22.04
+ubuntu_VERSIONS          = 18.04 20.04 22.04 24.04
 centos_VERSIONS          = 7
 rockylinux_VERSIONS           = 9
 define ubuntu_RELEASES
 18.04=bionic\
 20.04=focal\
-22.04=jammy
+22.04=jammy\
+24.04=noble
 endef
 define centos_RELEASES
 7=centos
@@ -48,6 +49,10 @@ check_os_version = $(if $(filter $(2), $(call get_versions,$(1))),, $(error OS_V
 get_release = $(strip $(foreach release,$(call get_releases,$(1)),$(if $(findstring $(2)=,$(release)),$(subst $(2)=,,$(release)))))
 
 KUBE_CALICO_COMPATIBILITY := \
+    "1.34=3.31.2" \
+    "1.33=3.31.2" \
+    "1.32=3.31.2" \
+    "1.31=3.28.0" \
     "1.30=3.28.0" \
     "1.29=3.27.3" \
     "1.28=3.27.3" \

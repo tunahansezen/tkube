@@ -3,14 +3,15 @@ package util
 import (
 	"errors"
 	"fmt"
-	"github.com/guumaster/logsymbols"
-	"github.com/manifoldco/promptui"
 	"net"
 	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/guumaster/logsymbols"
+	"github.com/manifoldco/promptui"
 )
 
 const (
@@ -71,6 +72,18 @@ var (
 		match, _ := regexp.MatchString(pattern, input)
 		if !match {
 			return errors.New("path is invalid")
+		}
+		return nil
+	}
+	AddressValidator = func(input string) error {
+		if len(input) < 1 {
+			return errors.New("need some input")
+		}
+		// IP or hostname with optional port
+		regex := `^(([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+|\d{1,3}(\.\d{1,3}){3})(:\d{1,5})?$`
+		match, _ := regexp.MatchString(regex, input)
+		if !match {
+			return errors.New("invalid address format (allowed: hostname, IPv4, and optional port)")
 		}
 		return nil
 	}

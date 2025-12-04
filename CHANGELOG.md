@@ -1,3 +1,9 @@
+## v1.3.6
+
+### Added or Changed
+- Better ISO file handling
+- Recent version updates
+
 ## v1.3.5
 
 ### Added or Changed
