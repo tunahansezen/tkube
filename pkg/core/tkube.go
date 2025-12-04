@@ -1,6 +1,13 @@
 package core
 
 import (
+	"embed"
+	"fmt"
+	"net"
+	"slices"
+	"strings"
+	"time"
+
 	cfg "com.github.tunahansezen/tkube/pkg/config"
 	"com.github.tunahansezen/tkube/pkg/config/model"
 	"com.github.tunahansezen/tkube/pkg/config/templates"
@@ -10,8 +17,6 @@ import (
 	"com.github.tunahansezen/tkube/pkg/os"
 	"com.github.tunahansezen/tkube/pkg/path"
 	"com.github.tunahansezen/tkube/pkg/util"
-	"embed"
-	"fmt"
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/helpers"
 	cfssl "github.com/cloudflare/cfssl/initca"
@@ -20,19 +25,15 @@ import (
 	"github.com/guumaster/logsymbols"
 	"github.com/hashicorp/go-version"
 	log "github.com/sirupsen/logrus"
-	"net"
-	"slices"
-	"strings"
-	"time"
 )
 
 const (
-	DefaultDockerVersion     = "20.10.24"
+	DefaultDockerVersion     = "28.5.2"
 	DefaultContainerdVersion = "auto"
-	DefaultEtcdVersion       = "3.5.14"
-	DefaultKubeVersion       = "1.30.1"
+	DefaultEtcdVersion       = "3.5.25"
+	DefaultKubeVersion       = "1.34.2"
 	DefaultCalicoVersion     = "auto"
-	DefaultHelmVersion       = "3.15.1"
+	DefaultHelmVersion       = "3.19.2"
 	DefaultDockerPrune       = false
 	DefaultSkipImageLoad     = false
 )
@@ -104,8 +105,12 @@ func Install(nodes model.KubeNodes, masterRecovery bool) {
 			} else {
 				fmt.Printf("\"%s\" file exist on \"%s\"\n", isoFile, node.IP.String())
 			}
+			util.StartSpinner(fmt.Sprintf("Umounting previous iso dir \"%s\" if exists on \"%s\"", constant.IsoMountDir, node.IP))
 			os.UmountISO(constant.IsoMountDir, node.IP)
+			util.StopSpinner("", logsymbols.Success)
+			util.StartSpinner(fmt.Sprintf("Mounting iso \"%s\" to dir \"%s\" on \"%s\"", IsoPath, constant.IsoMountDir, node.IP))
 			os.MountISO(constant.IsoMountDir, IsoPath, node.IP)
+			util.StopSpinner("", logsymbols.Success)
 			var repoAddress string
 			if os.InstallerType == os.Apt {
 				repoAddress = fmt.Sprintf("file://%s/repo ./", constant.IsoMountDir)
@@ -962,6 +967,7 @@ func kubeSystemPodNames(nodeName string) []string {
 func getCalicoVersion() string {
 	if CalicoVersion == "auto" {
 		kubeSemVer, _ := version.NewVersion(KubeVersion)
+		kube132Ver, _ := version.NewVersion("1.32")
 		kube127Ver, _ := version.NewVersion("1.27")
 		kube124Ver, _ := version.NewVersion("1.24")
 		kube123Ver, _ := version.NewVersion("1.23")
@@ -970,7 +976,9 @@ func getCalicoVersion() string {
 		kube120Ver, _ := version.NewVersion("1.20")
 		kube119Ver, _ := version.NewVersion("1.19")
 		kube118Ver, _ := version.NewVersion("1.18")
-		if kubeSemVer.GreaterThanOrEqual(kube127Ver) {
+		if kubeSemVer.GreaterThanOrEqual(kube132Ver) {
+			return "3.31.2"
+		} else if kubeSemVer.GreaterThanOrEqual(kube127Ver) {
 			return "3.27.2"
 		} else if kubeSemVer.GreaterThanOrEqual(kube124Ver) {
 			return "3.26.4"

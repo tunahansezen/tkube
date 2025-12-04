@@ -1,13 +1,16 @@
 package core
 
 import (
+	"fmt"
+
 	cfg "com.github.tunahansezen/tkube/pkg/config"
 	"com.github.tunahansezen/tkube/pkg/config/model"
 	conn "com.github.tunahansezen/tkube/pkg/connection"
 	"com.github.tunahansezen/tkube/pkg/constant"
 	"com.github.tunahansezen/tkube/pkg/os"
 	"com.github.tunahansezen/tkube/pkg/path"
-	"fmt"
+	"com.github.tunahansezen/tkube/pkg/util"
+	"github.com/guumaster/logsymbols"
 	"github.com/hashicorp/go-version"
 	"gopkg.in/yaml.v3"
 )
@@ -15,8 +18,12 @@ import (
 func PreRun() {
 	os.RemoteNode = &conn.Node{IP: os.RemoteNodeIP}
 	if IsoPath != "" {
+		util.StartSpinner(fmt.Sprintf("Umounting previous iso dir \"%s\" if exists on \"%s\"", constant.IsoMountDir, os.RemoteNode.IP))
 		os.UmountISO(constant.IsoMountDir, os.RemoteNode.IP)
+		util.StopSpinner("", logsymbols.Success)
+		util.StartSpinner(fmt.Sprintf("Mounting iso \"%s\" to dir \"%s\" on \"%s\"", IsoPath, constant.IsoMountDir, os.RemoteNode.IP))
 		os.MountISO(constant.IsoMountDir, IsoPath, os.RemoteNode.IP)
+		util.StopSpinner("", logsymbols.Success)
 		println("Reading versions from iso file")
 		fileStr := os.RunCommand(fmt.Sprintf("sudo cat %s/versions", constant.IsoMountDir), true)
 		println(fileStr)
