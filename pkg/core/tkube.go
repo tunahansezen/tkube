@@ -33,29 +33,33 @@ const (
 	DefaultEtcdVersion       = "3.5.25"
 	DefaultKubeVersion       = "1.34.2"
 	DefaultCalicoVersion     = "auto"
-	DefaultHelmVersion       = "3.19.2"
+	DefaultHelmVersion       = "3.13.3"
+	DefaultHelmfileVersion   = "0.160.0"
 	DefaultDockerPrune       = false
 	DefaultSkipImageLoad     = false
 )
 
 var (
 	//go:embed resources
-	f                     embed.FS
-	AuthMapStr            string // node1IP:node1SshUser:node1SshPass,node2IP:node2SshUser:node2SshPass...
-	DockerVersion         string
-	ContainerdVersion     string
-	EtcdVersion           string
-	KubeVersion           string
-	CalicoVersion         string
-	HelmVersion           string
-	IsoPath               string
-	etcdCompressedFile    string
-	etcdUrl               string
-	helmCompressedFile    string
-	helmUrl               string
-	DockerPrune           bool
-	multiMasterDeployment bool
-	SkipImageLoad         bool
+	f                      embed.FS
+	AuthMapStr             string // node1IP:node1SshUser:node1SshPass,node2IP:node2SshUser:node2SshPass...
+	DockerVersion          string
+	ContainerdVersion      string
+	EtcdVersion            string
+	KubeVersion            string
+	CalicoVersion          string
+	HelmVersion            string
+	HelmfileVersion        string
+	IsoPath                string
+	etcdCompressedFile     string
+	etcdUrl                string
+	helmCompressedFile     string
+	helmUrl                string
+	helmfileCompressedFile string
+	helmfileUrl            string
+	DockerPrune            bool
+	multiMasterDeployment  bool
+	SkipImageLoad          bool
 )
 
 func Install(nodes model.KubeNodes, masterRecovery bool) {
@@ -80,6 +84,13 @@ func Install(nodes model.KubeNodes, masterRecovery bool) {
 		var firstMasterNode model.KubeNode
 		for i, node := range nodes.Nodes {
 			if i == 0 {
+				repoFiles := os.RunCommandOn("find /etc/apt/ -type f \\( -name \"sources.list\" "+
+					"-o -name \"*ubuntu*.sources\" -o -name \"*ubuntu*.list\" \\)", node.IP, true)
+				if repoFiles != "" {
+					for _, filePath := range strings.Split(strings.TrimSuffix(repoFiles, "\n"), "\n") {
+						os.RunCommandOn(fmt.Sprintf("sudo mv %s %s.backup", filePath, filePath), node.IP, true)
+					}
+				}
 				firstMasterNode = node
 				os.UmountISO(constant.IsoMountDir, node.IP)
 				os.MountISO(constant.IsoMountDir, IsoPath, node.IP)
@@ -138,6 +149,10 @@ func Install(nodes model.KubeNodes, masterRecovery bool) {
 		}
 	}
 	installHelm(nodes)
+	installHelmfile(nodes)
+	if IsoPath != "" { // todo make for online
+		installHelmPlugins(nodes)
+	}
 	if cfg.DeploymentCfg.Keepalived.Enabled {
 		installKeepAliveD(nodes)
 	}
@@ -196,6 +211,7 @@ func prepareNodes(nodes model.KubeNodes) {
 	for _, kubeNode := range nodes.Nodes {
 		os.RunCommandOn("sudo sysctl fs.inotify.max_user_watches=1048576", kubeNode.IP, true)
 		os.RunCommandOn("sudo swapoff -a", kubeNode.IP, true)
+		os.RunCommandOn("sudo sed -i '/swap/ s/^[^#]/#&/' /etc/fstab", kubeNode.IP, true)
 		//os.RunCommandOn("sudo mkdir -p /sys/fs/cgroup/cpu,cpuacct", kubeNode.IP, true)
 		//os.RunCommandOn("sudo mount -t cgroup -o cpu,cpuacct none /sys/fs/cgroup/cpu,cpuacct || true", kubeNode.IP, true)
 		//os.RunCommandOn("sudo mkdir -p /sys/fs/cgroup/systemd", kubeNode.IP, true)
@@ -454,10 +470,7 @@ func installKubePackages(nodes model.KubeNodes, installationRequired map[string]
 				os.LockPackageVersion(pkg, kubeNode.IP)
 			}
 			if cfg.DeploymentCfg.Kubernetes.BashCompletion {
-				os.RunCommandOn("kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null",
-					kubeNode.IP, true)
-				os.RunCommandOn("sudo chmod a+r /etc/bash_completion.d/kubectl",
-					kubeNode.IP, true)
+				os.CreateBashCompletion("kubectl", kubeNode.IP)
 			}
 		} else {
 			fmt.Printf("Required kubernetes packages with version \"%s-00\" already installed on \"%s\"\n",
@@ -785,7 +798,106 @@ func installHelm(nodes model.KubeNodes) {
 		os.RunCommandOn(fmt.Sprintf("tar -zxvf %s/%s -C %s", tmpDir, helmCompressedFile, tmpDir), kubeNode.IP, true)
 		os.RunCommandOn(fmt.Sprintf("sudo cp %s/linux-amd64/helm /usr/bin/", tmpDir), kubeNode.IP, true)
 		os.RunCommandOn("sudo chmod +x /usr/bin/helm", kubeNode.IP, true)
+		os.CreateBashCompletion("helm", kubeNode.IP)
 		util.StopSpinner("", logsymbols.Success)
+	}
+}
+
+func installHelmfile(nodes model.KubeNodes) {
+	if !nodes.IncludeMaster() {
+		return
+	}
+	// download and distribute compressed helm file
+	var err error
+	helmfileUrl = cfg.DeploymentCfg.GetHelmfileExactUrl(HelmfileVersion)
+	helmfileCompressedFile = helmfileUrl[strings.LastIndex(helmfileUrl, "/")+1:]
+	var filePath string
+	var firstNode model.KubeNode
+	var fileExists bool
+	var skipInstallHelmfile []string
+	for i, kubeNode := range nodes.GetMasterKubeNodes() {
+		helmExists := os.CommandExists("helmfile")
+		if helmExists {
+			installedHelmfileVersion := os.RunCommandOn("helmfile version -o short 2>/dev/null || true",
+				kubeNode.IP, true)
+			if installedHelmfileVersion == HelmfileVersion {
+				skipInstallHelmfile = append(skipInstallHelmfile, kubeNode.IP.String())
+				fmt.Printf("helm with \"%s\" version already installed on \"%s\"\n", HelmfileVersion, kubeNode.Hostname)
+				continue
+			}
+		}
+		if err != nil {
+			os.Exit(err.Error(), 1)
+		}
+		if i == 0 {
+			firstNode = kubeNode
+			helmfileFolder := path.GetTKubeTmpDir(kubeNode.IP)
+			if IsoPath != "" {
+				helmfileFolder = fmt.Sprintf("%s/helmfile", constant.IsoMountDir)
+			}
+			filePath = fmt.Sprintf("%s/%s", helmfileFolder, helmfileCompressedFile)
+			fileExists = os.IsFileExistsOn("", filePath, firstNode.IP)
+		}
+		if fileExists {
+			util.StartSpinner(fmt.Sprintf("Transferring \"%s\" for %s to %s",
+				helmfileCompressedFile, firstNode.IP, kubeNode.IP))
+			err = os.TransferFile(filePath, fmt.Sprintf("%s/%s", path.GetTKubeTmpDir(kubeNode.IP), helmfileCompressedFile),
+				firstNode.IP, kubeNode.IP)
+			if err != nil {
+				os.Exit(err.Error(), 1)
+			}
+			util.StopSpinner("", logsymbols.Success)
+		} else {
+			util.StartSpinner(fmt.Sprintf("Downloading \"%s\" to %s", helmfileCompressedFile, kubeNode.IP))
+			os.RunCommandOn(fmt.Sprintf("wget -nc -P %s %s", path.GetTKubeTmpDir(kubeNode.IP), helmfileUrl), kubeNode.IP,
+				true)
+			if err != nil {
+				os.Exit(err.Error(), 1)
+			}
+			if i == 0 {
+				os.RunCommandOn(fmt.Sprintf("sudo cp %s/%s %s/", path.GetTKubeTmpDir(kubeNode.IP), helmfileCompressedFile,
+					path.GetTKubeResourcesDir()), kubeNode.IP, true)
+				if err != nil {
+					os.Exit(err.Error(), 1)
+				}
+			}
+			util.StopSpinner("", logsymbols.Success)
+		}
+	}
+
+	// install helmfile
+	for _, kubeNode := range nodes.GetMasterKubeNodes() {
+		if slices.Contains(skipInstallHelmfile, kubeNode.IP.String()) {
+			continue
+		}
+		util.StartSpinner(fmt.Sprintf("Installing helmfile-%s on \"%s\"", HelmVersion, kubeNode.Hostname))
+		prevHelmfilePath := os.RunCommandOn("which helmfile || true", kubeNode.IP, true)
+		if prevHelmfilePath != "" {
+			os.RunCommandOn(fmt.Sprintf("sudo rm -rf %s", prevHelmfilePath), kubeNode.IP, true)
+		}
+		tmpDir := path.GetTKubeTmpDir(kubeNode.IP)
+		os.RunCommandOn(fmt.Sprintf("tar -zxvf %s/%s -C %s", tmpDir, helmfileCompressedFile, tmpDir), kubeNode.IP, true)
+		os.RunCommandOn(fmt.Sprintf("sudo cp %s/helmfile /usr/bin/", tmpDir), kubeNode.IP, true)
+		os.RunCommandOn("sudo chmod +x /usr/bin/helmfile", kubeNode.IP, true)
+		os.CreateBashCompletion("helmfile", kubeNode.IP)
+		util.StopSpinner("", logsymbols.Success)
+	}
+}
+
+func installHelmPlugins(nodes model.KubeNodes) {
+	if !nodes.IncludeMaster() {
+		return
+	}
+	if !os.IsFolderExists(fmt.Sprintf("%s/helm/plugins", constant.IsoMountDir)) {
+		util.PrintWarning(fmt.Sprintf("helm/plugins folder not found on \"%s\". "+
+			"Skipping plugin installation.", constant.IsoFilesFolder))
+		return
+	}
+	for _, kubeNode := range nodes.GetMasterKubeNodes() {
+		helmHome := os.RunCommandOn("helm env HELM_DATA_HOME", kubeNode.IP, true)
+		os.RunCommandOn(fmt.Sprintf("rm -rf %s/plugins", helmHome), kubeNode.IP, true)
+		os.RunCommandOn(fmt.Sprintf("mkdir -p %s/plugins", helmHome), kubeNode.IP, true)
+		os.RunCommandOn(fmt.Sprintf("cp -r %s/helm/plugins %s", constant.IsoMountDir, helmHome), kubeNode.IP, true)
 	}
 }
 

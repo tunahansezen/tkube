@@ -29,4 +29,5 @@ const (
 	DefaultKubeImageRegistry      = "registry.k8s.io"
 	DefaultCalicoUrl              = "default"
 	DefaultHelmUrl                = "default"
+	DefaultHelmfileUrl            = "default"
 )

@@ -1,3 +1,10 @@
+## v1.3.7
+
+### Added or Changed
+- helmfile and required helm plugin handling
+- disable swap permanently
+- move default repo lists for iso installation
+
 ## v1.3.6
 
 ### Added or Changed

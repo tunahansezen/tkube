@@ -6,4 +6,5 @@ type IsoVersions struct {
 	Calico     string `yaml:"calico"`
 	Etcd       string `yaml:"etcd"`
 	Helm       string `yaml:"helm"`
+	Helmfile   string `yaml:"helmfile"`
 }

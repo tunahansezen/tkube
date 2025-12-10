@@ -2,12 +2,13 @@ package model
 
 import (
 	"encoding/json"
-	"github.com/hashicorp/go-version"
-	"github.com/mitchellh/mapstructure"
-	"github.com/spf13/viper"
 	"net"
 	"reflect"
 	"strings"
+
+	"github.com/hashicorp/go-version"
+	"github.com/mitchellh/mapstructure"
+	"github.com/spf13/viper"
 )
 
 type DeploymentConfig struct {
@@ -20,6 +21,7 @@ type DeploymentConfig struct {
 	Etcd        Etcd       `yaml:"etcd"`
 	Kubernetes  Kubernetes `yaml:"kubernetes"`
 	Helm        Helm       `yaml:"helm"`
+	Helmfile    Helmfile   `yaml:"helmfile"`
 	CustomRepos []Repo     `yaml:"customRepos"`
 }
 
@@ -99,6 +101,10 @@ type Calico struct {
 }
 
 type Helm struct {
+	DownloadUrl string `yaml:"downloadUrl"`
+}
+
+type Helmfile struct {
 	DownloadUrl string `yaml:"downloadUrl"`
 }
 
@@ -228,6 +234,15 @@ func (dc *DeploymentConfig) GetHelmExactUrl(helmVersion string) (exactUrl string
 		return strings.ReplaceAll(url, "{version}", helmVersion)
 	} else {
 		return strings.ReplaceAll(dc.Helm.DownloadUrl, "{version}", helmVersion)
+	}
+}
+
+func (dc *DeploymentConfig) GetHelmfileExactUrl(helmfileVersion string) (exactUrl string) {
+	if dc.Helmfile.DownloadUrl == "default" {
+		url := "https://github.com/helmfile/helmfile/releases/download/v{version}/helmfile_{version}_linux_amd64.tar.gz"
+		return strings.ReplaceAll(url, "{version}", helmfileVersion)
+	} else {
+		return strings.ReplaceAll(dc.Helmfile.DownloadUrl, "{version}", helmfileVersion)
 	}
 }
 

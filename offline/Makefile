@@ -19,7 +19,7 @@ DEFAULT_APT_KUBE_REPO_ADDRESS   = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJO
 DEFAULT_YUM_KUBE_REPO_ADDRESS   = https://pkgs.k8s.io/core:/stable:/v${KUBE_MAJOR_VERSION}/rpm/
 ETCD_VERSION                       = 3.5.25
 ETCD_URL                           = https://github.com/coreos/etcd/releases/download/v${ETCD_VERSION}/etcd-v${ETCD_VERSION}-linux-${TARGET_ARCH}.tar.gz
-HELM_VERSION                       = 3.19.2
+HELM_VERSION                       = 3.13.3
 HELM_URL                           = https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGET_ARCH}.tar.gz
 EXTRA_DOCKER_BUILD_ARGS            =
 

@@ -2,22 +2,23 @@ package os
 
 import (
 	"bytes"
-	conn "com.github.tunahansezen/tkube/pkg/connection"
-	"com.github.tunahansezen/tkube/pkg/constant"
-	"com.github.tunahansezen/tkube/pkg/util"
 	"errors"
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/guumaster/logsymbols"
-	"github.com/hashicorp/go-version"
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh"
 	"net"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	conn "com.github.tunahansezen/tkube/pkg/connection"
+	"com.github.tunahansezen/tkube/pkg/constant"
+	"com.github.tunahansezen/tkube/pkg/util"
+	"github.com/fatih/color"
+	"github.com/guumaster/logsymbols"
+	"github.com/hashicorp/go-version"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 )
 
 var (
@@ -653,6 +654,13 @@ func UmountISO(mountPath string, ip net.IP) {
 	if err == nil { // means there is a mount point
 		RunCommandOn(fmt.Sprintf("sudo umount %s", mountPath), ip, true)
 	}
+}
+
+func CreateBashCompletion(cmd string, ip net.IP) {
+	RunCommandOn(fmt.Sprintf("%s completion bash | sudo tee /etc/bash_completion.d/%s > /dev/null", cmd, cmd),
+		ip, true)
+	RunCommandOn(fmt.Sprintf("sudo chmod a+r /etc/bash_completion.d/%s", cmd),
+		ip, true)
 }
 
 func ThrowIfError(err error, code int) {
