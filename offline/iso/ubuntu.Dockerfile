@@ -84,11 +84,32 @@ ARG HELM_URL="https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGET_ARCH}.tar
 RUN mkdir -p ${DIR}/helm \
     && wget -nc -q -P ${DIR}/helm $HELM_URL
 
+ARG HELM_HOME=${DIR}/helm
+ENV HELM_CACHE_HOME=$HELM_HOME/.cache
+ENV HELM_CONFIG_HOME=$HELM_HOME/.config
+ENV HELM_DATA_HOME=$HELM_HOME/.local/share
+ENV HELM_PLUGINS=$HELM_HOME/plugins
+
+ARG HELMFILE_VERSION=0.160.0
+ARG HELMFILE_URL="https://github.com/helmfile/helmfile/releases/download/v${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION}_linux_${TARGET_ARCH}.tar.gz"
+RUN mkdir -p ${DIR}/helmfile \
+    && wget -nc -q -P ${DIR}/helmfile $HELMFILE_URL
+
+RUN tar -xzvf ${DIR}/helm/helm-v${HELM_VERSION}-linux-${TARGET_ARCH}.tar.gz && \
+    mv linux-${TARGET_ARCH}/helm /usr/bin && \
+    rm -rf linux-${TARGET_ARCH} && \
+    mkdir -p linux-${TARGET_ARCH} && \
+    tar -xzvf ${DIR}/helmfile/helmfile_${HELMFILE_VERSION}_linux_${TARGET_ARCH}.tar.gz -C linux-${TARGET_ARCH} && \
+    mv linux-${TARGET_ARCH}/helmfile /usr/bin && \
+    rm -rf linux-${TARGET_ARCH} && \
+    helmfile init --force
+
 RUN echo "kubernetes: $KUBE_VERSION" >> ${DIR}/versions \
     && echo "docker: $DOCKER_VERSION" >> ${DIR}/versions \
     && echo "calico: $CALICO_VERSION" >> ${DIR}/versions \
     && echo "etcd: $ETCD_VERSION" >> ${DIR}/versions \
-    && echo "helm: $HELM_VERSION" >> ${DIR}/versions
+    && echo "helm: $HELM_VERSION" >> ${DIR}/versions \
+    && echo "helmfile: $HELMFILE_VERSION" >> ${DIR}/versions
 
 RUN genisoimage -r -o ${OS_NAME}-${OS_VERSION}_kube-${KUBE_VERSION}_registry-${VERSION}.iso ${DIR}
 

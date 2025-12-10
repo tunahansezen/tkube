@@ -320,6 +320,9 @@ func askDeploymentConfig() (err error) {
 	if DeploymentCfg.Helm.DownloadUrl == "" {
 		DeploymentCfg.Helm.DownloadUrl = constant.DefaultHelmUrl
 	}
+	if DeploymentCfg.Helmfile.DownloadUrl == "" {
+		DeploymentCfg.Helmfile.DownloadUrl = constant.DefaultHelmfileUrl
+	}
 
 	// custom apt repo
 	if len(DeploymentCfg.CustomRepos) == 0 {

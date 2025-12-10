@@ -20,6 +20,7 @@ const (
 	fKubeVersion       = "kube"
 	fCalicoVersion     = "calico"
 	fHelmVersion       = "helm"
+	fHelmfileVersion   = "helmfile"
 	fDockerPrune       = "docker-prune"
 	fIso               = "iso"
 	fSkipImageLoad     = "skip-image-load"
@@ -69,6 +70,8 @@ func init() {
 		"calico version")
 	RootCmd.PersistentFlags().StringVarP(&core.HelmVersion, fHelmVersion, "", core.DefaultHelmVersion,
 		"helm version")
+	RootCmd.PersistentFlags().StringVarP(&core.HelmfileVersion, fHelmfileVersion, "", core.DefaultHelmfileVersion,
+		"helmfile version")
 	RootCmd.PersistentFlags().BoolVarP(&core.DockerPrune, fDockerPrune, "", core.DefaultDockerPrune,
 		"prune all docker images and other data")
 	RootCmd.PersistentFlags().StringVarP(&core.IsoPath, fIso, "", "", "ISO file path for offline installation")
