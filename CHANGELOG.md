@@ -1,3 +1,8 @@
+## v1.3.8
+
+### Added or Changed
+- sudoers fixes
+
 ## v1.3.7
 
 ### Added or Changed

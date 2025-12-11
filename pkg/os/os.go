@@ -156,24 +156,47 @@ func UserHomeDir() (string, error) {
 
 func AddToSudoers(ip net.IP) {
 	node := conn.Nodes[ip.String()]
+	user := ""
+	pass := ""
+	if node != nil {
+		user = node.SSHUser
+		pass = node.SSHPass
+		unknownNode := &conn.Node{IP: nil, SSHUser: user, SSHPass: pass}
+		conn.Nodes["unknown"] = unknownNode
+	}
+	if user == "" || pass == "" {
+		user = RunCommandOn("whoami", ip, true)
+		dataSSHUser, dataSSHPass, _, err := conn.CheckSSHDataForAddr("")
+		if dataSSHUser != "" && dataSSHUser == user && dataSSHPass != "" {
+			pass = dataSSHPass
+		} else {
+			pass, err = util.AskString("Please enter sudo pass", true, util.CommonValidator)
+			if err != nil {
+				Exit(err.Error(), 1)
+			}
+			err = conn.WriteSSHData("", user, pass, "")
+			if err != nil {
+				Exit(err.Error(), 1)
+			}
+		}
+	}
 	returnStr := RunCommandOn(fmt.Sprintf("echo \"%s\" | sudo -S grep -qxF '%s ALL=NOPASSWD: ALL' /etc/sudoers && "+
-		"echo exist || echo not exist", node.SSHPass, node.SSHUser), ip, true)
+		"echo exist || echo not exist", pass, user), ip, true)
 	if returnStr != "exist" {
 		sudoersPrevExistsMap[ip.String()] = false
 		RunCommandOn(fmt.Sprintf("echo \"%s\" | sudo -S sh -c \"echo '%s ALL=NOPASSWD: ALL' >> /etc/sudoers\"",
-			node.SSHPass, node.SSHUser), ip, true)
-		log.Debugf("\"%s\" user added to sudoers", node.SSHUser)
+			pass, user), ip, true)
+		log.Debugf("\"%s\" user added to sudoers", user)
 	} else {
 		sudoersPrevExistsMap[ip.String()] = true
 	}
 }
 
 func RemoveFromSudoers(ip net.IP) {
-	node := conn.Nodes[ip.String()]
+	user := RunCommandOn("whoami", ip, true)
 	RunCommandOn(fmt.Sprintf("sudo awk '!/%s ALL=NOPASSWD: ALL/' /etc/sudoers > temp && "+
-		"sudo chown root:root temp && sudo mv temp /etc/sudoers",
-		node.SSHUser), ip, true)
-	log.Debugf("\"%s\" user removed from sudoers", node.SSHUser)
+		"sudo chown root:root temp && sudo mv temp /etc/sudoers", user), ip, true)
+	log.Debugf("\"%s\" user removed from sudoers", user)
 }
 
 func AppendLineOn(line, file string, ifNotExists bool, ip net.IP) {
