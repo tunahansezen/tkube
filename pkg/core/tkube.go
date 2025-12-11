@@ -895,7 +895,7 @@ func installHelmPlugins(nodes model.KubeNodes) {
 	}
 	for _, kubeNode := range nodes.GetMasterKubeNodes() {
 		helmHome := os.RunCommandOn("helm env HELM_DATA_HOME", kubeNode.IP, true)
-		os.RunCommandOn(fmt.Sprintf("rm -rf %s/plugins", helmHome), kubeNode.IP, true)
+		os.RunCommandOn(fmt.Sprintf("sudo rm -rf %s/plugins", helmHome), kubeNode.IP, true)
 		os.RunCommandOn(fmt.Sprintf("mkdir -p %s/plugins", helmHome), kubeNode.IP, true)
 		os.RunCommandOn(fmt.Sprintf("cp -r %s/helm/plugins %s", constant.IsoMountDir, helmHome), kubeNode.IP, true)
 	}

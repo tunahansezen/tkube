@@ -18,9 +18,11 @@ import (
 func PreRun() {
 	os.RemoteNode = &conn.Node{IP: os.RemoteNodeIP}
 	if IsoPath != "" {
-		err := conn.CheckSSHConnection(&conn.Node{IP: os.RemoteNode.IP})
-		if err != nil {
-			os.Exit(err.Error(), 1)
+		if os.RemoteNodeIP != nil {
+			err := conn.CheckSSHConnection(&conn.Node{IP: os.RemoteNode.IP})
+			if err != nil {
+				os.Exit(err.Error(), 1)
+			}
 		}
 		os.AddToSudoers(os.RemoteNode.IP)
 		util.StartSpinner(fmt.Sprintf("Umounting previous iso dir \"%s\" if exists on \"%s\"", constant.IsoMountDir, os.RemoteNode.IP))
@@ -33,7 +35,7 @@ func PreRun() {
 		fileStr := os.RunCommand(fmt.Sprintf("sudo cat %s/versions", constant.IsoMountDir), true)
 		println(fileStr)
 		var isoVersions model.IsoVersions
-		err = yaml.Unmarshal([]byte(fileStr), &isoVersions)
+		err := yaml.Unmarshal([]byte(fileStr), &isoVersions)
 		if err != nil {
 			os.Exit(err.Error(), 1)
 		}
