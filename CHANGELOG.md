@@ -1,3 +1,8 @@
+## v1.3.9
+
+### Added or Changed
+- password validator
+
 ## v1.3.8
 
 ### Added or Changed

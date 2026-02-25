@@ -30,6 +30,12 @@ var (
 		}
 		return nil
 	}
+	PasswordValidator = func(input string) error {
+		if len(input) < 1 {
+			return errors.New("need some input")
+		}
+		return nil
+	}
 	ZeroTo255Validator = func(input string) error {
 		if len(input) < 1 {
 			return errors.New("need some input")

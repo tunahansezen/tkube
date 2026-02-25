@@ -1,15 +1,8 @@
 package connection
 
 import (
-	enc "com.github.tunahansezen/tkube/pkg/encryption"
-	"com.github.tunahansezen/tkube/pkg/util"
 	"errors"
 	"fmt"
-	"github.com/guumaster/logsymbols"
-	"github.com/pkg/sftp"
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh"
-	"gopkg.in/yaml.v3"
 	"io"
 	"net"
 	"os"
@@ -17,6 +10,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	enc "com.github.tunahansezen/tkube/pkg/encryption"
+	"com.github.tunahansezen/tkube/pkg/util"
+	"github.com/guumaster/logsymbols"
+	"github.com/pkg/sftp"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -158,7 +159,7 @@ func CreateSshConnection(node *Node) (*ssh.Client, error) {
 			return nil, err
 		} else if authMethod == "password" {
 			usedSSHPass, err = util.AskString(fmt.Sprintf("Please enter SSH pass for %s", node.IP), true,
-				util.CommonValidator)
+				util.PasswordValidator)
 			if err != nil {
 				return nil, err
 			}

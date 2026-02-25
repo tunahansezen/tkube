@@ -170,7 +170,7 @@ func AddToSudoers(ip net.IP) {
 		if dataSSHUser != "" && dataSSHUser == user && dataSSHPass != "" {
 			pass = dataSSHPass
 		} else {
-			pass, err = util.AskString("Please enter sudo pass", true, util.CommonValidator)
+			pass, err = util.AskString("Please enter sudo pass", true, util.PasswordValidator)
 			if err != nil {
 				Exit(err.Error(), 1)
 			}
