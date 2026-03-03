@@ -35,6 +35,7 @@ const (
 	Ubuntu Type = iota
 	CentOS
 	Rocky
+	Redhat
 )
 
 type Installer int
@@ -56,6 +57,9 @@ func DetectOS() {
 		InstallerType = Yum
 	} else if strings.Contains(osOutputLower, "rocky") {
 		OS = Rocky
+		InstallerType = Dnf
+	} else if strings.Contains(osOutputLower, "redhat") || strings.Contains(osOutputLower, "red hat") {
+		OS = Redhat
 		InstallerType = Dnf
 	} else {
 		Exit(fmt.Sprintf("Unsupported OS: %s", osOutput), 1)

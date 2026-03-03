@@ -27,3 +27,7 @@ make iso OS_NAME=ubuntu OS_VERSION=18.04 DOCKER_VERSION=19.03.9 KUBE_VERSION=1.1
   KUBE_REPO_ADDRESS="https://sebarepo.argela.com.tr/repository/seba-apt-stable stable main" \
   EXTRA_DOCKER_BUILD_ARGS="--add-host=sebarepo.argela.com.tr:192.168.31.202"
 ```
+
+```shell
+make iso OS_NAME=redhatubi OS_VERSION=9.6-source DOCKER_VERSION=29.2.1 KUBE_VERSION=1.34.4
+```

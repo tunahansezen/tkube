@@ -134,7 +134,7 @@ func askDeploymentConfig() (err error) {
 		}
 	}
 
-	if os.OS == os.CentOS || os.OS == os.Rocky {
+	if os.OS == os.CentOS || os.OS == os.Rocky || os.OS == os.Redhat {
 		if firstAsk {
 			DeploymentCfg.CentOS = model.CentOS{SetSelinuxPermissive: true}
 		}
