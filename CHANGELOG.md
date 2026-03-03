@@ -1,6 +1,11 @@
 ## v1.3.9
 
 ### Added or Changed
+- red hat enterprise linux support
+
+## v1.3.9
+
+### Added or Changed
 - password validator
 
 ## v1.3.8

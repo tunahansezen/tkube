@@ -84,8 +84,11 @@ func Install(nodes model.KubeNodes, masterRecovery bool) {
 		var firstMasterNode model.KubeNode
 		for i, node := range nodes.Nodes {
 			if i == 0 {
-				repoFiles := os.RunCommandOn("find /etc/apt/ -type f \\( -name \"sources.list\" "+
-					"-o -name \"*ubuntu*.sources\" -o -name \"*ubuntu*.list\" \\)", node.IP, true)
+				var repoFiles string
+				if os.OS == os.Ubuntu {
+					repoFiles = os.RunCommandOn("find /etc/apt/ -type f \\( -name \"sources.list\" "+
+						"-o -name \"*ubuntu*.sources\" -o -name \"*ubuntu*.list\" \\)", node.IP, true)
+				}
 				if repoFiles != "" {
 					for _, filePath := range strings.Split(strings.TrimSuffix(repoFiles, "\n"), "\n") {
 						os.RunCommandOn(fmt.Sprintf("sudo mv %s %s.backup", filePath, filePath), node.IP, true)
@@ -216,7 +219,7 @@ func prepareNodes(nodes model.KubeNodes) {
 		//os.RunCommandOn("sudo mount -t cgroup -o cpu,cpuacct none /sys/fs/cgroup/cpu,cpuacct || true", kubeNode.IP, true)
 		//os.RunCommandOn("sudo mkdir -p /sys/fs/cgroup/systemd", kubeNode.IP, true)
 		//os.RunCommandOn("sudo mount -t cgroup -o none,name=systemd cgroup /sys/fs/cgroup/systemd || true", kubeNode.IP, true)
-		if (os.OS == os.CentOS || os.OS == os.Rocky) && cfg.DeploymentCfg.CentOS.SetSelinuxPermissive {
+		if (os.OS == os.CentOS || os.OS == os.Rocky || os.OS == os.Redhat) && cfg.DeploymentCfg.CentOS.SetSelinuxPermissive {
 			if os.IsSelinuxEnabled(kubeNode.IP) {
 				util.StartSpinner("Setting SELinux to permissive mode")
 				os.RunCommandOn("sudo setenforce 0", kubeNode.IP, true)

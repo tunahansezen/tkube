@@ -8,7 +8,7 @@ DEFAULT_APT_DOCKER_REPO_KEY     = https://download.docker.com/linux/ubuntu/gpg
 DEFAULT_YUM_DOCKER_REPO_KEY     = https://download.docker.com/linux/centos/gpg
 DOCKER_REPO_ADDRESS                =
 DEFAULT_APT_DOCKER_REPO_ADDRESS = https://download.docker.com/linux/ubuntu ${OS_RELEASE} stable
-DEFAULT_YUM_DOCKER_REPO_ADDRESS = https://download.docker.com/linux/centos/7.9/x86_64/stable # fixme static
+DEFAULT_YUM_DOCKER_REPO_ADDRESS = https://download.docker.com/linux/centos/9/x86_64/stable # fixme static
 KUBE_VERSION                       =
 KUBE_MAJOR_VERSION                 = $(shell echo $(KUBE_VERSION) | cut -d '.' -f 1,2)
 KUBE_REPO_KEY                      =
@@ -27,7 +27,7 @@ DEST_PATH 			     = ./output
 OS_ARR                   = ubuntu centos rockylinux
 ubuntu_VERSIONS          = 18.04 20.04 22.04 24.04
 centos_VERSIONS          = 7
-rockylinux_VERSIONS           = 9
+rockylinux_VERSIONS      = 9 9.6
 define ubuntu_RELEASES
 18.04=bionic\
 20.04=focal\
@@ -38,7 +38,8 @@ define centos_RELEASES
 7=centos
 endef
 define rockylinux_RELEASES
-9=rockylinux
+9=rockylinux\
+9.6=rockylinux96
 endef
 
 check_semver = $(if $(shell echo $(1) | grep -Eq '^([0-9]+)\.([0-9]+)\.([0-9]+)$$'; echo $$?),, $(error Version '$(1)' is not valid. It should be in the form of MAJOR.MINOR.PATCH))
@@ -49,6 +50,7 @@ check_os_version = $(if $(filter $(2), $(call get_versions,$(1))),, $(error OS_V
 get_release = $(strip $(foreach release,$(call get_releases,$(1)),$(if $(findstring $(2)=,$(release)),$(subst $(2)=,,$(release)))))
 
 KUBE_CALICO_COMPATIBILITY := \
+    "1.35=3.31.4" \
     "1.34=3.31.2" \
     "1.33=3.31.2" \
     "1.32=3.31.2" \
@@ -67,6 +69,13 @@ KUBE_CALICO_COMPATIBILITY := \
     "1.19=3.20" \
     "1.18=3.18" \
     "1.17=3.17"
+
+BASE_IMAGE_NAMES := \
+    "ubuntu=ubuntu" \
+    "centos=centos" \
+    "rockylinux=rockylinux"
+
+get_base_image_name = $(strip $(foreach base,$(BASE_IMAGE_NAMES),$(if $(findstring $(1)=,$(base)),$(subst $(1)=,,$(base)))))
 
 define get_calico_version
     $(shell \
@@ -124,6 +133,11 @@ calculate_calico:
 	$(eval CALICO_URL=$(call get_calico_exact_url,$(CALICO_VERSION)))
 	@echo "Calico URL for Kubernetes $(KUBE_VERSION): $(CALICO_URL)"
 
+calculate_base_image:
+	$(eval BASE_IMAGE_NAME=$(call get_base_image_name,$(OS_NAME)))
+	@if [ -z "$(BASE_IMAGE_NAME)" ]; then echo "Error: No base image name found for OS_NAME '$(OS_NAME)'"; exit 1; fi
+	@echo "Base image for OS_NAME $(OS_NAME): $(BASE_IMAGE_NAME)"
+
 calculate_repos:
 ifndef DOCKER_REPO_KEY
 ifeq ($(OS_NAME), ubuntu)
@@ -154,11 +168,12 @@ else
 endif
 endif
 
-iso: check-vars calculate_repos calculate_calico
+iso: check-vars calculate_repos calculate_calico calculate_base_image
 	DOCKER_BUILDKIT=1 docker build \
     	  -t tkube:$(VERSION) \
           --platform linux/$(TARGET_ARCH) \
     	  --build-arg OS_NAME=$(OS_NAME) \
+          --build-arg BASE_IMAGE_NAME=$(BASE_IMAGE_NAME) \
     	  --build-arg OS_VERSION=$(OS_VERSION) \
     	  --build-arg OS_RELEASE=$(OS_RELEASE) \
     	  --build-arg VERSION=$(VERSION) \
