@@ -13,6 +13,7 @@ import (
 
 	enc "com.github.tunahansezen/tkube/pkg/encryption"
 	"com.github.tunahansezen/tkube/pkg/util"
+	"github.com/bodgit/sshkrb5"
 	"github.com/guumaster/logsymbols"
 	"github.com/pkg/sftp"
 	log "github.com/sirupsen/logrus"
@@ -29,9 +30,11 @@ var (
 
 type Node struct {
 	IP                net.IP
+	SSHPort           int
 	SSHUser           string
 	SSHPass           string
 	SSHPrivateKeyPath string
+	Hostname          string
 }
 
 func (n Node) String() string {
@@ -98,8 +101,8 @@ func CheckSSHConnection(node *Node) error {
 		// already checked
 		return nil
 	}
-	if !IsReachable(node.IP.String(), 22) {
-		return errors.New(fmt.Sprintf("%s:%d is not reachable", node.IP, 22))
+	if !IsReachable(node.IP.String(), node.SSHPort) {
+		return errors.New(fmt.Sprintf("%s:%d is not reachable", node.IP.String(), node.SSHPort))
 	}
 	_, err := CreateSshConnection(node)
 	return err
@@ -133,7 +136,7 @@ func CreateSshConnection(node *Node) (*ssh.Client, error) {
 			auth = getKeyAuth(dataSSHPrivateKey)
 			usedPrivateKeyPath = dataSSHPrivateKey
 		}
-		connection, err = sshDial(dataSSHUser, auth, node.IP.String())
+		connection, err = sshDial(dataSSHUser, auth, node.IP.String(), node.SSHPort)
 	} else if node.SSHUser != "" && (node.SSHPass != "" || node.SSHPrivateKeyPath != "") { // read from config
 		usedSSHUser = node.SSHUser
 		if node.SSHPass != "" {
@@ -145,20 +148,20 @@ func CreateSshConnection(node *Node) (*ssh.Client, error) {
 			auth = getKeyAuth(node.SSHPrivateKeyPath)
 			usedPrivateKeyPath = node.SSHPrivateKeyPath
 		}
-		connection, err = sshDial(node.SSHUser, auth, node.IP.String())
+		connection, err = sshDial(node.SSHUser, auth, node.IP.String(), node.SSHPort)
 	} else { // ask credentials
-		usedSSHUser, err = util.AskString(fmt.Sprintf("Please enter SSH user for %s", node.IP), false,
+		usedSSHUser, err = util.AskString(fmt.Sprintf("Please enter SSH user for %s", node.IP.String()), false,
 			util.CommonValidator)
 		if err != nil {
 			return nil, err
 		}
 		var authMethod string
 		authMethod, err = util.AskChoice("Which method want to use for SSH authentication?",
-			[]string{"password", "private-key"})
+			[]string{"password", "private-key", "kerberos"})
 		if err != nil {
 			return nil, err
 		} else if authMethod == "password" {
-			usedSSHPass, err = util.AskString(fmt.Sprintf("Please enter SSH pass for %s", node.IP), true,
+			usedSSHPass, err = util.AskString(fmt.Sprintf("Please enter SSH pass for %s", node.IP.String()), true,
 				util.PasswordValidator)
 			if err != nil {
 				return nil, err
@@ -168,20 +171,35 @@ func CreateSshConnection(node *Node) (*ssh.Client, error) {
 			}
 		} else if authMethod == "private-key" {
 			usedPrivateKeyPath, err = util.AskString(
-				fmt.Sprintf("Please enter SSH private key path for %s", node.IP), false, util.PathValidator)
+				fmt.Sprintf("Please enter SSH private key path for %s", node.IP.String()), false, util.PathValidator)
 			if err != nil {
 				return nil, err
 			}
 			auth = getKeyAuth(usedPrivateKeyPath)
+		} else if authMethod == "kerberos" {
+			gssapiClient, err := sshkrb5.NewClient()
+			if err != nil {
+				log.Fatalf("GSSAPI client could not created: %v", err)
+			}
+			defer gssapiClient.Close()
+			hostname := node.Hostname
+			if hostname == "" {
+				hostname, err = util.AskString(
+					fmt.Sprintf("Please enter host address for %s to use kerberos", node.IP.String()), false,
+					util.CommonValidator)
+			}
+			auth = []ssh.AuthMethod{
+				ssh.GSSAPIWithMICAuthMethod(gssapiClient, hostname),
+			}
 		}
-		connection, err = sshDial(usedSSHUser, auth, node.IP.String())
+		connection, err = sshDial(usedSSHUser, auth, node.IP.String(), node.SSHPort)
 		if err == nil {
-			finalMsg = fmt.Sprintf("SSH connection successful for %s with user \"%s\"", node.IP, usedSSHUser)
+			finalMsg = fmt.Sprintf("SSH connection successful for %s with user \"%s\"", node.IP.String(), usedSSHUser)
 		}
 	}
 
 	if err != nil {
-		util.StopSpinner(fmt.Sprintf("SSH authentication failed for %s", node.IP), logsymbols.Error)
+		util.StopSpinner(fmt.Sprintf("SSH authentication failed for %s", node.IP.String()), logsymbols.Error)
 		if dataSSHUser != "" {
 			err = clearSSHDataForAddr(node.IP.String())
 			if err != nil {
@@ -317,13 +335,13 @@ func getKeyAuth(keyPath string) []ssh.AuthMethod {
 	}
 }
 
-func sshDial(user string, auth []ssh.AuthMethod, addr string) (*ssh.Client, error) {
+func sshDial(user string, auth []ssh.AuthMethod, addr string, port int) (*ssh.Client, error) {
 	config := &ssh.ClientConfig{
 		User:            user,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
 		Auth:            auth,
 	}
-	return ssh.Dial("tcp", net.JoinHostPort(addr, "22"), config)
+	return ssh.Dial("tcp", net.JoinHostPort(addr, strconv.Itoa(port)), config)
 }
 
 func CloseSSHSessions() {
@@ -340,7 +358,7 @@ func CloseSSHSessions() {
 func SendFile(ip net.IP, srcFile io.Reader, dstPath string) error {
 	exist := sshConnections[ip.String()]
 	if exist == nil {
-		client, err := CreateSshConnection(&Node{IP: ip})
+		client, err := CreateSshConnection(&Node{IP: ip, SSHPort: 22})
 		if err != nil {
 			return err
 		}
@@ -374,4 +392,21 @@ func SendFile(ip net.IP, srcFile io.Reader, dstPath string) error {
 		return err
 	}
 	return nil
+}
+
+func ResolveIPs(input string) ([]string, error) {
+	if ip := net.ParseIP(input); ip != nil {
+		return []string{input}, nil
+	}
+	ips, err := net.LookupHost(input)
+	if err != nil {
+		return nil, fmt.Errorf("'%s' dns lookup failed: %v", input, err)
+	}
+	var filteredIPs []string
+	for _, ip := range ips {
+		if !strings.HasPrefix(ip, "127.") {
+			filteredIPs = append(filteredIPs, ip)
+		}
+	}
+	return filteredIPs, nil
 }
