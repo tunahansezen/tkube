@@ -1,0 +1,36 @@
+version: '3.8'
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server.Dockerfile
+    hostname: server.test.local
+    ports:
+      - "88:88"      # Kendi PC'nden TGT almak için Kerberos portu
+      - "88:88/udp"
+    networks:
+      default:
+        aliases:
+          - server.test.local
+    volumes:
+      - shared-keys:/shared # Keytab takası için paylaşımlı alan
+
+  client:
+    build:
+      context: .
+      dockerfile: client.Dockerfile
+    hostname: client.test.local
+    ports:
+      - "2222:22"    # Go kodunla bağlanacağın hedef SSH portu
+    networks:
+      default:
+        aliases:
+          - client.test.local
+    volumes:
+      - shared-keys:/shared
+      - .:/app
+    depends_on:
+      - server
+
+volumes:
+  shared-keys:
