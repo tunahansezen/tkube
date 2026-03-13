@@ -83,7 +83,7 @@ func runCommandOnReturnErr(command string, ip net.IP, silent, returnErr bool) (s
 	} else {
 		node := conn.Nodes[ip.String()]
 		if node == nil {
-			node = &conn.Node{IP: ip}
+			node = &conn.Node{IP: ip, SSHPort: 22}
 		}
 		returnStr, err = RemoteRun(node, command, silent)
 	}

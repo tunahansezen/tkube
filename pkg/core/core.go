@@ -19,7 +19,7 @@ func PreRun() {
 	os.RemoteNode = &conn.Node{IP: os.RemoteNodeIP}
 	if IsoPath != "" {
 		if os.RemoteNodeIP != nil {
-			err := conn.CheckSSHConnection(&conn.Node{IP: os.RemoteNode.IP})
+			err := conn.CheckSSHConnection(&conn.Node{IP: os.RemoteNode.IP, SSHPort: os.RemoteNode.SSHPort})
 			if err != nil {
 				os.Exit(err.Error(), 1)
 			}
@@ -65,7 +65,7 @@ func PreRun() {
 	cfg.ReadConfig()
 	os.RunCommand(fmt.Sprintf("mkdir -p %s", path.GetTKubeResourcesDir()), true)
 	for _, kubeNode := range cfg.DeploymentCfg.GetKubeNodes() {
-		err := conn.CheckSSHConnection(&conn.Node{IP: kubeNode.IP})
+		err := conn.CheckSSHConnection(&conn.Node{IP: kubeNode.IP, Hostname: kubeNode.Hostname, SSHPort: 22})
 		if err != nil {
 			os.Exit(err.Error(), 1)
 		}

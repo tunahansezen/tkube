@@ -1,3 +1,8 @@
+## v1.4.15
+
+### Added or Changed
+- kerberos auth support
+
 ## v1.3.9
 
 ### Added or Changed
