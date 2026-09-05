@@ -377,6 +377,12 @@ func installContainerd(nodes model.KubeNodes) {
 			os.RunCommandOn(fmt.Sprintf("sudo sed -i 's/    sandbox_image = .*/    sandbox_image = \"%s\\/%s\"/g' "+
 				"/etc/containerd/config.toml", cfg.DeploymentCfg.Kubernetes.ImageRegistry,
 				cfg.DeploymentCfg.Containerd.Cri.SandboxImage), kubeNode.IP, true)
+			os.RunCommandOn(fmt.Sprintf("sudo sed -i 's/      sandbox = .*/      sandbox = \"%s\\/%s\"/g' "+
+				"/etc/containerd/config.toml", cfg.DeploymentCfg.Kubernetes.ImageRegistry,
+				cfg.DeploymentCfg.Containerd.Cri.SandboxImage), kubeNode.IP, true)
+			os.RunCommandOn(fmt.Sprintf("sudo sed -i 's/    sandbox_image = .*/    sandbox_image = \"%s\\/%s\"/g' "+
+				"/etc/containerd/config.toml", cfg.DeploymentCfg.Kubernetes.ImageRegistry,
+				cfg.DeploymentCfg.Containerd.Cri.SandboxImage), kubeNode.IP, true)
 			if len(cfg.DeploymentCfg.Docker.Daemon.InsecureRegistries) > 0 {
 				os.RunCommandOn("sudo sed -i 's/config_path = \"\"/config_path = \"\\/etc\\/containerd\\/certs.d\"/g' "+
 					"/etc/containerd/config.toml", kubeNode.IP, true)
@@ -825,7 +831,7 @@ func installHelmfile(nodes model.KubeNodes) {
 				kubeNode.IP, true)
 			if installedHelmfileVersion == HelmfileVersion {
 				skipInstallHelmfile = append(skipInstallHelmfile, kubeNode.IP.String())
-				fmt.Printf("helm with \"%s\" version already installed on \"%s\"\n", HelmfileVersion, kubeNode.Hostname)
+				fmt.Printf("helmfile with \"%s\" version already installed on \"%s\"\n", HelmfileVersion, kubeNode.Hostname)
 				continue
 			}
 		}
