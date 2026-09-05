@@ -1,3 +1,8 @@
+## v1.4.16
+
+### Added or Changed
+- containerd pause image fix for new versions
+
 ## v1.4.15
 
 ### Added or Changed
