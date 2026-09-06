@@ -2,17 +2,18 @@ package kube
 
 import (
 	"bytes"
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
+
 	"com.github.tunahansezen/tkube/pkg/config/model"
 	"com.github.tunahansezen/tkube/pkg/constant"
 	"com.github.tunahansezen/tkube/pkg/os"
-	"fmt"
 	"github.com/hashicorp/go-version"
 	"github.com/invopop/yaml"
 	yamlv3 "gopkg.in/yaml.v3"
 	kubeApi "k8s.io/client-go/tools/clientcmd/api"
-	"net"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -210,6 +211,7 @@ func createKubeadmKubeletCfg(kubeVersion string, dc model.DeploymentConfig) (kc 
 	if kubeSemVer.GreaterThanOrEqual(kube124Ver) {
 		kc.ContainerLogMaxFiles, _ = strconv.Atoi(dc.Docker.Daemon.LogOpts.MaxFile)
 		kc.ContainerLogMaxSize = strings.ReplaceAll(dc.Docker.Daemon.LogOpts.MaxSize, "m", "Mi")
+		kc.ContainerLogMaxSize = strings.ReplaceAll(dc.Docker.Daemon.LogOpts.MaxSize, "g", "Gi")
 	}
 	return kc
 }

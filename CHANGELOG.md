@@ -1,3 +1,8 @@
+## v1.4.17
+
+### Added or Changed
+- max log size gb fix
+
 ## v1.4.16
 
 ### Added or Changed
