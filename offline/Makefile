@@ -25,14 +25,15 @@ EXTRA_DOCKER_BUILD_ARGS            =
 
 DEST_PATH 			     = ./output
 OS_ARR                   = ubuntu centos rockylinux
-ubuntu_VERSIONS          = 18.04 20.04 22.04 24.04
+ubuntu_VERSIONS          = 18.04 20.04 22.04 24.04 26.04
 centos_VERSIONS          = 7
 rockylinux_VERSIONS      = 9 9.6
 define ubuntu_RELEASES
 18.04=bionic\
 20.04=focal\
 22.04=jammy\
-24.04=noble
+24.04=noble\
+26.04=resolute
 endef
 define centos_RELEASES
 7=centos

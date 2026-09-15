@@ -26,8 +26,9 @@ RUN yq eval "${SECONDARY_PKGS}" packages.yaml | xargs apt install -y --no-instal
 ARG DOCKER_VERSION=20.10.24
 ARG DOCKER_REPO_KEY="https://download.docker.com/linux/ubuntu/gpg"
 ARG DOCKER_REPO_ADDRESS="https://download.docker.com/linux/ubuntu $OS_RELEASE stable"
-RUN curl -fsSL $DOCKER_REPO_KEY | apt-key add -qq - \
-    && echo "deb [arch=$TARGET_ARCH] $DOCKER_REPO_ADDRESS" > /etc/apt/sources.list.d/docker.list \
+RUN mkdir -p /etc/apt/keyrings \
+    && curl -fsSL $DOCKER_REPO_KEY | gpg --batch --yes --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && echo "deb [arch=$TARGET_ARCH signed-by=/etc/apt/keyrings/docker.gpg] $DOCKER_REPO_ADDRESS" > /etc/apt/sources.list.d/docker.list \
     && apt update -qq \
     && DOCKER_EXACT_VERSION=$(apt list -a docker-ce 2>/dev/null | cut -d '[' -f1 | grep ${DOCKER_VERSION} | head -1 | xargs | cut -d ' ' -f2) \
     && if [ -z "$DOCKER_EXACT_VERSION" ]; then echo "Docker not found with version $DOCKER_VERSION"; exit 1; fi \
@@ -38,7 +39,7 @@ ARG KUBE_MAJOR_VERSION=1.30
 ARG KUBE_REPO_KEY="https://pkgs.k8s.io/core:/stable:/v$KUBE_MAJOR_VERSION/deb/Release.key"
 ARG KUBE_REPO_ADDRESS="https://pkgs.k8s.io/core:/stable:/v$KUBE_MAJOR_VERSION/deb/ /"
 RUN mkdir -p /etc/apt/keyrings \
-    && curl -fsSL $KUBE_REPO_KEY | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg \
+    && curl -fsSL $KUBE_REPO_KEY | gpg --batch --yes --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] $KUBE_REPO_ADDRESS" > /etc/apt/sources.list.d/kubernetes.list \
     && apt update -qq \
     && KUBE_EXACT_VERSION=$(apt list -a kubelet 2>/dev/null | cut -d '[' -f1 | grep ${KUBE_VERSION} | head -1 | xargs | cut -d ' ' -f2) \
