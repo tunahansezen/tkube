@@ -10,6 +10,7 @@ import (
 	"github.com/jcmturner/gokrb5/v8/config"
 	"github.com/jcmturner/gokrb5/v8/credentials"
 	"github.com/jcmturner/gokrb5/v8/keytab"
+	"github.com/spf13/afero"
 )
 
 const (
@@ -20,6 +21,9 @@ const (
 	krb5ClientKTName = "KRB5_CLIENT_KTNAME"
 )
 
+//nolint:gochecknoglobals
+var fs = afero.NewOsFs()
+
 func findFile(logger logr.Logger, env string, try []string) (string, error) {
 	logger.Info("looking for file", "env", env, "paths", try)
 
@@ -27,7 +31,7 @@ func findFile(logger logr.Logger, env string, try []string) (string, error) {
 	if ok {
 		path = strings.TrimPrefix(path, krb5FilePrefix)
 
-		if _, err := os.Stat(path); err != nil {
+		if _, err := fs.Stat(path); err != nil {
 			return "", fmt.Errorf("%s: %w", env, err)
 		}
 
@@ -37,7 +41,7 @@ func findFile(logger logr.Logger, env string, try []string) (string, error) {
 	errs := fmt.Errorf("%s: not found", env)
 
 	for _, t := range try {
-		if _, err := os.Stat(t); err != nil {
+		if _, err := fs.Stat(t); err != nil {
 			errs = multierror.Append(errs, err)
 
 			if os.IsNotExist(err) {
@@ -81,8 +85,9 @@ func loadKeytab(logger logr.Logger) (*keytab.Keytab, error) {
 }
 
 func loadClientKeytab(logger logr.Logger) (*keytab.Keytab, error) {
-	//nolint:lll
-	path, err := findFile(logger, krb5ClientKTName, []string{fmt.Sprintf("/var/kerberos/krb5/user/%d/client.keytab", os.Geteuid())})
+	path, err := findFile(logger,
+		krb5ClientKTName,
+		[]string{fmt.Sprintf("/var/kerberos/krb5/user/%d/client.keytab", os.Geteuid())})
 	if err != nil {
 		return nil, err
 	}
