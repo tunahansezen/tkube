@@ -1,3 +1,8 @@
+## v1.5.0
+
+### Added or Changed
+- Ubuntu 26.04 support
+
 ## v1.4.17
 
 ### Added or Changed
