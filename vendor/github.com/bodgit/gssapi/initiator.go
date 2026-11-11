@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/bits"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/jcmturner/gokrb5/v8/client"
@@ -140,56 +141,59 @@ func (ctx *Initiator) Initiate(service string, flags int, input []byte) ([]byte,
 
 	//nolint:nestif
 	if len(input) == 0 {
-		ctx.context.flags = flags & supportedFlags
+		ctx.flags = flags & supportedFlags
+
+		// BUG(bodgit): see https://github.com/jcmturner/gokrb5/issues/529
+		ctx.expiry = time.Now().Add(ctx.client.Config.LibDefaults.TicketLifetime)
 
 		var ticket messages.Ticket
 
-		if ticket, ctx.context.key, err = ctx.client.GetServiceTicket(strings.ReplaceAll(service, "@", "/")); err != nil {
+		if ticket, ctx.key, err = ctx.client.GetServiceTicket(strings.ReplaceAll(service, "@", "/")); err != nil {
 			return nil, false, err
 		}
 
-		ctx.context.peerName = fmt.Sprintf("%s@%s", ticket.SName.PrincipalNameString(), ticket.Realm)
+		ctx.peerName = fmt.Sprintf("%s@%s", ticket.SName.PrincipalNameString(), ticket.Realm)
 
-		f := make([]int, 0, bits.OnesCount(uint(ctx.context.flags)))
+		f := make([]int, 0, bits.OnesCount(uint(ctx.flags)))
 
 		for i := 0; i < bits.Len(supportedFlags); i++ {
-			if ctx.context.flags&(1<<i) != 0 {
+			if ctx.flags&(1<<i) != 0 {
 				f = append(f, 1<<i)
 			}
 		}
 
-		apreq, err := spnego.NewKRB5TokenAPREQ(ctx.client, ticket, ctx.context.key, f, nil)
+		apreq, err := spnego.NewKRB5TokenAPREQ(ctx.client, ticket, ctx.key, f, nil)
 		if err != nil {
 			return nil, false, err
 		}
 
-		if ctx.context.doMutual() {
+		if ctx.doMutual() {
 			types.SetFlag(&apreq.APReq.APOptions, ianaflags.APOptionMutualRequired)
 		}
 
-		if err = apreq.APReq.DecryptAuthenticator(ctx.context.key); err != nil {
+		if err = apreq.APReq.DecryptAuthenticator(ctx.key); err != nil {
 			return nil, false, err
 		}
 
-		ctx.context.sequenceNumber = uint64(apreq.APReq.Authenticator.SeqNumber)
+		ctx.sequenceNumber = uint64(apreq.APReq.Authenticator.SeqNumber)
 
-		ctx.context.ctime = apreq.APReq.Authenticator.CTime
-		ctx.context.cusec = apreq.APReq.Authenticator.Cusec
+		ctx.ctime = apreq.APReq.Authenticator.CTime
+		ctx.cusec = apreq.APReq.Authenticator.Cusec
 
 		output, err := apreq.Marshal()
 		if err != nil {
 			return nil, false, err
 		}
 
-		if !ctx.context.doMutual() {
-			ctx.context.established = true
-			ctx.context.baseSequenceNumber = ctx.context.sequenceNumber
+		if !ctx.doMutual() {
+			ctx.established = true
+			ctx.baseSequenceNumber = ctx.sequenceNumber
 		}
 
 		return output, true, nil
 	}
 
-	if !ctx.context.doMutual() {
+	if !ctx.doMutual() {
 		return nil, false, errors.New("not mutual")
 	}
 
@@ -206,7 +210,7 @@ func (ctx *Initiator) Initiate(service string, flags int, input []byte) ([]byte,
 		return nil, false, errors.New("didn't receive an AP-REP")
 	}
 
-	b, err := crypto.DecryptEncPart(aprep.APRep.EncPart, ctx.context.key, keyusage.AP_REP_ENCPART)
+	b, err := crypto.DecryptEncPart(aprep.APRep.EncPart, ctx.key, keyusage.AP_REP_ENCPART)
 	if err != nil {
 		return nil, false, krberror.Errorf(err, krberror.DecryptingError, "error decrypting AP-REP enc-part")
 	}
@@ -216,18 +220,18 @@ func (ctx *Initiator) Initiate(service string, flags int, input []byte) ([]byte,
 		return nil, false, krberror.Errorf(err, krberror.EncodingError, "error unmarshalling decrypted AP-REP enc-part")
 	}
 
-	ctx.context.baseSequenceNumber = uint64(payload.SequenceNumber)
+	ctx.baseSequenceNumber = uint64(payload.SequenceNumber)
 
 	if payload.Subkey.KeyType != 0 {
-		ctx.context.peerSubkey = payload.Subkey
+		ctx.peerSubkey = payload.Subkey
 	}
 
 	// Use Round()) to strip off any monotonic clock reading
-	if !ctx.context.ctime.Round(0).Equal(payload.CTime.UTC()) || ctx.context.cusec != payload.Cusec {
+	if !ctx.ctime.Round(0).Equal(payload.CTime.UTC()) || ctx.cusec != payload.Cusec {
 		return nil, false, errors.New("mutual failed")
 	}
 
-	ctx.context.established = true
+	ctx.established = true
 
 	return nil, false, nil
 }

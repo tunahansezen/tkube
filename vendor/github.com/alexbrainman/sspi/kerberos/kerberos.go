@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build windows
 // +build windows
 
 // Package kerberos provides access to the Microsoft Kerberos SSP Package.
-//
 package kerberos
 
 import (
@@ -74,8 +74,9 @@ func AcquireServerCredentials(principalName string) (*sspi.Credentials, error) {
 
 // ClientContext is used by the client to manage all steps of Kerberos negotiation.
 type ClientContext struct {
-	sctxt      *sspi.Context
-	targetName *uint16
+	sctxt           *sspi.Context
+	targetName      *uint16
+	channelBindings []byte
 }
 
 // NewClientContext creates a new client context. It uses client
@@ -97,6 +98,13 @@ func NewClientContext(cred *sspi.Credentials, targetName string) (*ClientContext
 // (for example sspi.ISC_REQ_CONFIDENTIALITY|sspi.ISC_REQ_REPLAY_DETECT)
 // NewClientContextWithFlags returns a new token to be sent to the server.
 func NewClientContextWithFlags(cred *sspi.Credentials, targetName string, flags uint32) (*ClientContext, bool, []byte, error) {
+	return NewClientContextWithChannelBindings(cred, targetName, flags, nil)
+}
+
+// NewClientContextWithChannelBindings creates a new client context with channel binding support.
+// channelBindings should contain the channel binding token (e.g., TLS channel binding data).
+// https://learn.microsoft.com/en-us/windows/win32/secauthn/epa-support-in-service
+func NewClientContextWithChannelBindings(cred *sspi.Credentials, targetName string, flags uint32, channelBindings []byte) (*ClientContext, bool, []byte, error) {
 	var tname *uint16
 	if len(targetName) > 0 {
 		p, err := syscall.UTF16FromString(targetName)
@@ -110,7 +118,7 @@ func NewClientContextWithFlags(cred *sspi.Credentials, targetName string, flags 
 	otoken := make([]byte, PackageInfo.MaxToken)
 	c := sspi.NewClientContext(cred, flags)
 
-	authCompleted, n, err := common.UpdateContext(c, otoken, nil, tname)
+	authCompleted, n, err := common.UpdateContextWithChannelBindings(c, otoken, nil, channelBindings, tname)
 	if err != nil {
 		return nil, false, nil, err
 	}
@@ -119,7 +127,7 @@ func NewClientContextWithFlags(cred *sspi.Credentials, targetName string, flags 
 		return nil, false, nil, errors.New("kerberos token should not be empty")
 	}
 	otoken = otoken[:n]
-	return &ClientContext{sctxt: c, targetName: tname}, authCompleted, otoken, nil
+	return &ClientContext{sctxt: c, targetName: tname, channelBindings: channelBindings}, authCompleted, otoken, nil
 }
 
 // Release free up resources associated with client context c.
@@ -141,7 +149,8 @@ func (c *ClientContext) Expiry() time.Time {
 // sent to the server.
 func (c *ClientContext) Update(token []byte) (bool, []byte, error) {
 	otoken := make([]byte, PackageInfo.MaxToken)
-	authDone, n, err := common.UpdateContext(c.sctxt, otoken, token, c.targetName)
+
+	authDone, n, err := common.UpdateContextWithChannelBindings(c.sctxt, otoken, token, c.channelBindings, c.targetName)
 	if err != nil {
 		return false, nil, err
 	}

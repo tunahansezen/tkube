@@ -25,15 +25,13 @@ type apRep struct {
 	EncPart types.EncryptedData `asn1:"explicit,tag:2"`
 }
 
-func (a *apRep) marshal() (b []byte, err error) {
-	b, err = asn1.Marshal(*a)
+func (a *apRep) marshal() ([]byte, error) {
+	b, err := asn1.Marshal(*a)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	b = asn1tools.AddASNAppTag(b, asnAppTag.APREP)
-
-	return
+	return asn1tools.AddASNAppTag(b, asnAppTag.APREP), nil
 }
 
 type encAPRepPart struct {
@@ -43,37 +41,29 @@ type encAPRepPart struct {
 	SequenceNumber int64               `asn1:"optional,explicit,tag:3"`
 }
 
-func (a *encAPRepPart) marshal() (b []byte, err error) {
-	b, err = asn1.Marshal(*a)
+func (a *encAPRepPart) marshal() ([]byte, error) {
+	b, err := asn1.Marshal(*a)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	b = asn1tools.AddASNAppTag(b, asnAppTag.EncAPRepPart)
-
-	return
+	return asn1tools.AddASNAppTag(b, asnAppTag.EncAPRepPart), nil
 }
 
-func newAPRep(tkt messages.Ticket, sessionKey types.EncryptionKey, encPart encAPRepPart) (a apRep, err error) {
+func newAPRep(tkt messages.Ticket, sessionKey types.EncryptionKey, encPart encAPRepPart) (apRep, error) {
 	m, err := encPart.marshal()
 	if err != nil {
-		err = krberror.Errorf(err, krberror.EncodingError, "marshaling error of AP-REP enc-part")
-
-		return
+		return apRep{}, krberror.Errorf(err, krberror.EncodingError, "marshaling error of AP-REP enc-part")
 	}
 
 	ed, err := crypto.GetEncryptedData(m, sessionKey, keyusage.AP_REP_ENCPART, tkt.EncPart.KVNO)
 	if err != nil {
-		err = krberror.Errorf(err, krberror.EncryptingError, "error encrypting AP-REP enc-part")
-
-		return
+		return apRep{}, krberror.Errorf(err, krberror.EncryptingError, "error encrypting AP-REP enc-part")
 	}
 
-	a = apRep{
+	return apRep{
 		PVNO:    iana.PVNO,
 		MsgType: msgtype.KRB_AP_REP,
 		EncPart: ed,
-	}
-
-	return
+	}, nil
 }

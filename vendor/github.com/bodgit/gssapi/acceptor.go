@@ -109,9 +109,7 @@ func getAPRepMessage(tkt messages.Ticket, key types.EncryptionKey, ctime time.Ti
 
 	aprep, err := newAPRep(tkt, key, encPart)
 	if err != nil {
-		err = fmt.Errorf("gssapi: %w", err)
-
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("gssapi: %w", err)
 	}
 
 	return &aprep, uint64(seqNum), nil
@@ -122,7 +120,7 @@ func getAPRepMessage(tkt messages.Ticket, key types.EncryptionKey, ctime time.Ti
 //
 //nolint:cyclop,funlen
 func (ctx *Acceptor) Accept(input []byte) ([]byte, bool, error) {
-	if ctx.context.established {
+	if ctx.established {
 		return nil, false, nil
 	}
 
@@ -169,27 +167,29 @@ func (ctx *Acceptor) Accept(input []byte) ([]byte, bool, error) {
 		return nil, false, err
 	}
 
-	ctx.context.baseSequenceNumber = uint64(apreq.APReq.Authenticator.SeqNumber)
+	ctx.baseSequenceNumber = uint64(apreq.APReq.Authenticator.SeqNumber)
 
-	ctx.context.ctime = apreq.APReq.Authenticator.CTime
-	ctx.context.cusec = apreq.APReq.Authenticator.Cusec
+	ctx.ctime = apreq.APReq.Authenticator.CTime
+	ctx.cusec = apreq.APReq.Authenticator.Cusec
 
-	ctx.context.key = apreq.APReq.Ticket.DecryptedEncPart.Key
+	ctx.key = apreq.APReq.Ticket.DecryptedEncPart.Key
 
 	if apreq.APReq.Authenticator.SubKey.KeyType != 0 {
-		ctx.context.peerSubkey = apreq.APReq.Authenticator.SubKey
+		ctx.peerSubkey = apreq.APReq.Authenticator.SubKey
 	}
 
-	ctx.context.flags = int(supportedFlags & binary.LittleEndian.Uint32(apreq.APReq.Authenticator.Cksum.Checksum[20:24]))
+	ctx.flags = int(supportedFlags & binary.LittleEndian.Uint32(apreq.APReq.Authenticator.Cksum.Checksum[20:24]))
 
-	ctx.context.peerName = fmt.Sprintf("%s@%s", apreq.APReq.Ticket.DecryptedEncPart.CName.PrincipalNameString(),
+	ctx.expiry = apreq.APReq.Ticket.DecryptedEncPart.EndTime
+
+	ctx.peerName = fmt.Sprintf("%s@%s", apreq.APReq.Ticket.DecryptedEncPart.CName.PrincipalNameString(),
 		apreq.APReq.Ticket.DecryptedEncPart.CRealm)
 
 	if types.IsFlagSet(&apreq.APReq.APOptions, ianaflags.APOptionMutualRequired) {
 		var aprep *apRep
 
-		aprep, ctx.context.sequenceNumber, err = getAPRepMessage(apreq.APReq.Ticket, ctx.context.key,
-			ctx.context.ctime, ctx.context.cusec)
+		aprep, ctx.sequenceNumber, err = getAPRepMessage(apreq.APReq.Ticket, ctx.key,
+			ctx.ctime, ctx.cusec)
 		if err != nil {
 			return nil, false, err
 		}
@@ -207,10 +207,10 @@ func (ctx *Acceptor) Accept(input []byte) ([]byte, bool, error) {
 			return nil, false, err
 		}
 	} else {
-		ctx.context.sequenceNumber = ctx.context.baseSequenceNumber
+		ctx.sequenceNumber = ctx.baseSequenceNumber
 	}
 
-	ctx.context.established = true
+	ctx.established = true
 
 	return output, false, nil
 }

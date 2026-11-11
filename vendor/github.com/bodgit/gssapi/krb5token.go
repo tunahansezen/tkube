@@ -15,9 +15,9 @@ import (
 // If/when upstream fixes this omission it can be removed.
 
 type krb5Token struct {
-	oid      asn1.ObjectIdentifier
-	tokID    []byte
-	apReq    *messages.APReq
+	oid   asn1.ObjectIdentifier
+	tokID []byte
+	// apReq    *messages.APReq
 	apRep    *apRep
 	krbError *messages.KRBError
 }
@@ -32,11 +32,13 @@ func (m *krb5Token) marshal() ([]byte, error) {
 	)
 
 	switch hex.EncodeToString(m.tokID) {
-	case spnego.TOK_ID_KRB_AP_REQ:
-		tb, err = m.apReq.Marshal()
-		if err != nil {
-			return []byte{}, fmt.Errorf("error marshalling AP_REQ for MechToken: %w", err)
-		}
+	/*
+		case spnego.TOK_ID_KRB_AP_REQ:
+			tb, err = m.apReq.Marshal()
+			if err != nil {
+				return []byte{}, fmt.Errorf("error marshalling AP_REQ for MechToken: %w", err)
+			}
+	*/
 	case spnego.TOK_ID_KRB_AP_REP:
 		tb, err = m.apRep.marshal()
 		if err != nil {
