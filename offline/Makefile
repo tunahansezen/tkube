@@ -51,6 +51,7 @@ check_os_version = $(if $(filter $(2), $(call get_versions,$(1))),, $(error OS_V
 get_release = $(strip $(foreach release,$(call get_releases,$(1)),$(if $(findstring $(2)=,$(release)),$(subst $(2)=,,$(release)))))
 
 KUBE_CALICO_COMPATIBILITY := \
+    "1.36=3.32.4" \
     "1.35=3.31.4" \
     "1.34=3.31.2" \
     "1.33=3.31.2" \
