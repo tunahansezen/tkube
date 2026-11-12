@@ -204,7 +204,7 @@ func DefaultDockerDaemonCfg() DockerDaemonCfg {
 	dockerDaemonCfg.ExecOpts = []string{"native.cgroupdriver=systemd"}
 	dockerDaemonCfg.LogDriver = "json-file"
 	dockerDaemonCfg.LogOpts.MaxFile = "2"
-	dockerDaemonCfg.LogOpts.MaxSize = "100m"
+	dockerDaemonCfg.LogOpts.MaxSize = "1g"
 	dockerDaemonCfg.RegistryMirrors = []string{}
 	dockerDaemonCfg.InsecureRegistries = []string{}
 	dockerDaemonCfg.Debug = false

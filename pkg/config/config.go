@@ -206,7 +206,7 @@ func askDeploymentConfig() (err error) {
 
 	// docker
 	if DeploymentCfg.Docker.Repo.Address == "" {
-		DeploymentCfg.Docker.Enabled = false
+		DeploymentCfg.Docker.Enabled = true
 		DeploymentCfg.Docker.Repo.Enabled = true
 		DeploymentCfg.Docker.Repo.Name = "Docker"
 		if os.InstallerType == os.Apt {
