@@ -1,12 +1,12 @@
 package gssapi
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/go-logr/logr"
-	"github.com/hashicorp/go-multierror"
 	"github.com/jcmturner/gokrb5/v8/config"
 	"github.com/jcmturner/gokrb5/v8/credentials"
 	"github.com/jcmturner/gokrb5/v8/keytab"
@@ -42,7 +42,7 @@ func findFile(logger logr.Logger, env string, try []string) (string, error) {
 
 	for _, t := range try {
 		if _, err := fs.Stat(t); err != nil {
-			errs = multierror.Append(errs, err)
+			errs = errors.Join(errs, err)
 
 			if os.IsNotExist(err) {
 				continue

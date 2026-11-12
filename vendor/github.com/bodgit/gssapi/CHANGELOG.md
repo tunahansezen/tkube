@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.4](https://github.com/bodgit/gssapi/compare/v0.0.3...v0.0.4) (2026-05-28)
+
+
+### Bug Fixes
+
+* Refactor away multierror ([#74](https://github.com/bodgit/gssapi/issues/74)) ([841d5c4](https://github.com/bodgit/gssapi/commit/841d5c4c9c555ec5fa06c18d030d098a7583de5c))
+
 ## [0.0.3](https://github.com/bodgit/gssapi/compare/v0.0.2...v0.0.3) (2026-05-19)
 
 
